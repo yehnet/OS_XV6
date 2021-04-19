@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sigaction.h"
 
 struct cpu cpus[NCPU];
 
@@ -636,6 +637,24 @@ uint sigprocmask(uint sigmask)
   p->sigMask = sigmask;
   release(&p->lock);
   return oldMask;
+}
+//Ass2 - Task2
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
+{
+  //TODO: Need to check the end of task 2.1.4 and acccept only valid values
+  struct proc *p = myproc();
+  struct sigaction* temp = p->sigHandlers[signum];
+  if (act != 0)
+  {
+    acquire(&p->lock);
+    p->sigHandlers[signum] = act;
+    release(&p->lock);
+  }
+  if (oldact != 0)
+  {
+    return copyout(p->pagetable, (uint64)oldact, (char*)temp, sizeof(struct sigaction));
+  }
+  return 0;
 }
 
 // Copy to either a user address, or kernel address,

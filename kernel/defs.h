@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct sigaction;
 
 // bio.c
 void            binit(void);
@@ -107,6 +108,7 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 //Ass2 - Task2
 uint            sigprocmask(uint sigmask);
+int             sigaction(int, const struct sigaction*, struct sigaction*);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
