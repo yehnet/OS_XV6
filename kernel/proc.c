@@ -627,6 +627,17 @@ int kill(int pid)
   return -1;
 }
 
+//Ass2 - Task2
+uint sigprocmask(uint sigmask)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  uint oldMask = p->sigMask;
+  p->sigMask = sigmask;
+  release(&p->lock);
+  return oldMask;
+}
+
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.
