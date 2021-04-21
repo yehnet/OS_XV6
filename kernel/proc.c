@@ -477,7 +477,7 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == RUNNABLE)
+      if (p->state == RUNNABLE && canRun(p)==0)
       {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
@@ -494,7 +494,13 @@ void scheduler(void)
     }
   }
 }
-
+//TODO:
+//Ass2 - Task2 - this is not good because the proccess is not getting CPU to change it's pendingSig
+int canRun(struct proc *p){
+  if ((p->pendingSig & 1<<SIGCONT)!=0){
+    return 0;
+  }
+}
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -609,7 +615,8 @@ int kill(int pid, int signum)
 {
   struct proc *p;
 
-  if (signum <0){
+  if (signum < 0)
+  {
     return -1;
   }
 
@@ -619,17 +626,25 @@ int kill(int pid, int signum)
     //Do we really need to check if ZOMBIE?
     if (p->pid == pid || p->state != ZOMBIE)
     {
-      //---- Old kill ----
-      // p->killed = 1;
-      // if (p->state == SLEEPING)
-      // {
-      //   // Wake process from sleep().
-      //   p->state = RUNNABLE;
-      // }
-      
+      switch (signum)
+      {
+      case SIGKILL:
+        p->killed = 1;
+        if (p->state == SLEEPING)
+        {
+          // Wake process from sleep().
+          p->state = RUNNABLE;
+        }
+        break;
+      case SIGSTOP:
+        p->state = RUNNABLE;
+        break;
+      default:
+        break;
+      }
       // ---- New kill ----
       //Ass2 - Task 2.2.1
-      p->pendingSig = p->pendingSig + (1<<signum);
+      p->pendingSig = p->pendingSig + (1 << signum);
       release(&p->lock);
       return 0;
     }
@@ -651,27 +666,29 @@ uint sigprocmask(uint sigmask)
 //Ass2 - Task2
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
-  if (signum == SIGKILL || signum == SIGSTOP){
+  if (signum == SIGKILL || signum == SIGSTOP)
+  {
     return -1;
   }
   //TODO: Need to check the end of task 2.1.4 and acccept only valid values
   struct proc *p = myproc();
-  struct sigaction* temp = p->sigHandlers[signum];
+  struct sigaction *temp = p->sigHandlers[signum];
   if (act != 0)
   {
     acquire(&p->lock);
-    p->sigHandlers[signum] = (struct sigaction*)act; //without casting makes an error becouse it's const
+    p->sigHandlers[signum] = (struct sigaction *)act; //without casting makes an error becouse it's const
     release(&p->lock);
   }
   if (oldact != 0)
   {
-    return copyout(p->pagetable, (uint64)oldact, (char*)temp, sizeof(struct sigaction));
+    return copyout(p->pagetable, (uint64)oldact, (char *)temp, sizeof(struct sigaction));
   }
   return 0;
 }
 
 //Ass2 - Task2.1.5
-void sigret(){
+void sigret()
+{
   //TODO: Implement in task 2.4
 }
 
