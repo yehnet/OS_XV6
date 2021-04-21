@@ -647,7 +647,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
   if (act != 0)
   {
     acquire(&p->lock);
-    p->sigHandlers[signum] = act;
+    p->sigHandlers[signum] = (struct sigaction*)act; //without casting makes an error becouse it's const
     release(&p->lock);
   }
   if (oldact != 0)
@@ -655,6 +655,11 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
     return copyout(p->pagetable, (uint64)oldact, (char*)temp, sizeof(struct sigaction));
   }
   return 0;
+}
+
+//Ass2 - Task2.1.5
+void sigret(){
+  //TODO: Implement in task 2.4
 }
 
 // Copy to either a user address, or kernel address,

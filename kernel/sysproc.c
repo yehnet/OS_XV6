@@ -106,11 +106,12 @@ sys_sigprocmask(void)
   return sigprocmask(sigmask);
 }
 
+//Ass2 - Task2
 uint64
 sys_sigaction(void){
   int signum;
-  const struct sigaction* act;
-  struct sigaction* oldact;
+  const struct sigaction* act = 0;
+  struct sigaction* oldact = 0;
   if(argint(0, &signum) < 0)
     return -1;
   if(argaddr(1, act) < 0)
@@ -118,4 +119,12 @@ sys_sigaction(void){
   if(argaddr(2, oldact) < 0)
     return -1;
   return sigaction(signum, act, oldact);
+}
+
+//Ass2 - Task2
+uint64
+sys_sigret(void){
+  //TODO: Implement in task 2.4
+  //sigret();
+  return 0;
 }

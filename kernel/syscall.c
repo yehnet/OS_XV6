@@ -107,6 +107,8 @@ extern uint64 sys_uptime(void);
 //Ass2 - Task2
 extern uint64 sys_sigprocmask(void);
 extern uint64 sys_sigaction(void);
+extern uint64 sys_sigret(void);
+
 
 
 static uint64 (*syscalls[])(void) = {
@@ -134,6 +136,8 @@ static uint64 (*syscalls[])(void) = {
 //Ass2 - Task2
 [SYS_sigprocmask]   sys_sigprocmask,
 [SYS_sigaction]     sys_sigaction,
+[SYS_sigret]        sys_sigret,
+
 
 };
 

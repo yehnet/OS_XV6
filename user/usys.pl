@@ -39,4 +39,5 @@ entry("uptime");
 # Ass2 - Task2
 entry("sigprocmask");
 entry("sigaction");
+entry("sigret");
 
