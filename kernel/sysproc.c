@@ -11,10 +11,10 @@ uint64
 sys_exit(void)
 {
   int n;
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   exit(n);
-  return 0;  // not reached
+  return 0; // not reached
 }
 
 uint64
@@ -33,7 +33,7 @@ uint64
 sys_wait(void)
 {
   uint64 p;
-  if(argaddr(0, &p) < 0)
+  if (argaddr(0, &p) < 0)
     return -1;
   return wait(p);
 }
@@ -44,10 +44,10 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
@@ -58,12 +58,14 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(myproc()->killed){
+  while (ticks - ticks0 < n)
+  {
+    if (myproc()->killed)
+    {
       release(&tickslock);
       return -1;
     }
@@ -76,11 +78,13 @@ sys_sleep(void)
 uint64
 sys_kill(void)
 {
-  int pid;
+  int pid, signum;
 
-  if(argint(0, &pid) < 0)
+  if (argint(0, &pid) < 0)
     return -1;
-  return kill(pid);
+  if (argint(0, &signum) < 0)
+    return -1;
+  return kill(pid, signum);
 }
 
 // return how many clock tick interrupts have occurred
@@ -101,29 +105,31 @@ uint64
 sys_sigprocmask(void)
 {
   uint sigmask;
-  if(argint(0, &sigmask) < 0)
+  if (argint(0, &sigmask) < 0)
     return -1;
   return sigprocmask(sigmask);
 }
 
 //Ass2 - Task2
 uint64
-sys_sigaction(void){
+sys_sigaction(void)
+{
   int signum;
-  const struct sigaction* act = 0;
-  struct sigaction* oldact = 0;
-  if(argint(0, &signum) < 0)
+  const struct sigaction *act = 0;
+  struct sigaction *oldact = 0;
+  if (argint(0, &signum) < 0)
     return -1;
-  if(argaddr(1, act) < 0)
+  if (argaddr(1, act) < 0)
     return -1;
-  if(argaddr(2, oldact) < 0)
+  if (argaddr(2, oldact) < 0)
     return -1;
   return sigaction(signum, act, oldact);
 }
 
 //Ass2 - Task2
 uint64
-sys_sigret(void){
+sys_sigret(void)
+{
   //TODO: Implement in task 2.4
   //sigret();
   return 0;
