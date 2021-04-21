@@ -646,6 +646,9 @@ uint sigprocmask(uint sigmask)
 //Ass2 - Task2
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
+  if (signum == SIGKILL || signum == SIGSTOP){
+    return -1;
+  }
   //TODO: Need to check the end of task 2.1.4 and acccept only valid values
   struct proc *p = myproc();
   struct sigaction* temp = p->sigHandlers[signum];
