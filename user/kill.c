@@ -12,6 +12,7 @@ main(int argc, char **argv)
     exit(1);
   }
   for(i=1; i<argc; i++)
-    kill(atoi(argv[i]));
+    //Ass2 - Task2.2.2
+    kill(atoi(argv[i]),9);
   exit(0);
 }

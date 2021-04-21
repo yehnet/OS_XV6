@@ -609,10 +609,15 @@ int kill(int pid, int signum)
 {
   struct proc *p;
 
+  if (signum <0){
+    return -1;
+  }
+
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
-    if (p->pid == pid)
+    //Do we really need to check if ZOMBIE?
+    if (p->pid == pid || p->state != ZOMBIE)
     {
       //---- Old kill ----
       // p->killed = 1;
