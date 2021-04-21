@@ -117,7 +117,7 @@ exec(char *path, char **argv)
   //Ass2 - Task2
   for (int i = 0; i < 32; i++)
   {
-    if (p->sigHandlers[i] != SIG_IGN)
+    if (p->sigHandlers[i] != (void*)SIG_IGN)
       p->sigHandlers[i] = SIG_DFL;
   }
   proc_freepagetable(oldpagetable, oldsz);

@@ -1,5 +1,7 @@
 struct stat;
 struct rtcdate;
+//Ass2 - Task2
+struct sigaction;
 
 // system calls
 int fork(void);

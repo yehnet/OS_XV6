@@ -108,7 +108,7 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 //Ass2 - Task2
 uint            sigprocmask(uint sigmask);
-int             sigaction(int, const struct sigaction*, struct sigaction*);
+int             sigaction(int signum, const struct sigaction* act, struct sigaction* oldact);
 void            sigret(void);
 
 // swtch.S

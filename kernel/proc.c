@@ -621,9 +621,10 @@ int kill(int pid, int signum)
       //   // Wake process from sleep().
       //   p->state = RUNNABLE;
       // }
+      
       // ---- New kill ----
       //Ass2 - Task 2.2.1
-      p->pendingSig = p->pendingSig + 1<<signum;
+      p->pendingSig = p->pendingSig + (1<<signum);
       release(&p->lock);
       return 0;
     }
