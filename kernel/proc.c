@@ -477,7 +477,7 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == RUNNABLE && canRun(p)==0)
+      if (p->state == RUNNABLE)
       {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
@@ -494,13 +494,7 @@ void scheduler(void)
     }
   }
 }
-//TODO:
-//Ass2 - Task2 - this is not good because the proccess is not getting CPU to change it's pendingSig
-int canRun(struct proc *p){
-  if ((p->pendingSig & 1<<SIGCONT)!=0){
-    return 0;
-  }
-}
+
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
