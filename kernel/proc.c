@@ -154,7 +154,11 @@ found:
   {
     p->sigHandlers[i] = SIG_DFL; //TODO: check if right
   }
+  
+  //should we initialize with sigcont on?
+  p->pendingSig = 1<<SIGCONT;
 
+  //Question: where the release is happenning? 
   return p;
 }
 
@@ -617,8 +621,9 @@ int kill(int pid, int signum)
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
+    //check if signal already on
     //Do we really need to check if ZOMBIE?
-    if (p->pid == pid || p->state != ZOMBIE)
+    if (((p->pendingSig & 1<<signum) == 0) && (p->pid == pid) && (p->state != ZOMBIE))
     {
       switch (signum)
       {
@@ -630,15 +635,19 @@ int kill(int pid, int signum)
           p->state = RUNNABLE;
         }
         break;
+        //Ass2 - Task2
       case SIGSTOP:
-        p->state = RUNNABLE;
+        // add sigstop to pending and remove sigcont
+        //FIXME :in case signal is down, will the subtract cause errors?
+        p->pendingSig = ((p->pendingSig + (1 << SIGSTOP)) - (1 << SIGCONT));
+        break;
+      case SIGCONT:
+        p->pendingSig = ((p->pendingSig + (1 << SIGCONT)) - (1 << SIGSTOP));
         break;
       default:
+        p->pendingSig = p->pendingSig + (1 << signum);
         break;
       }
-      // ---- New kill ----
-      //Ass2 - Task 2.2.1
-      p->pendingSig = p->pendingSig + (1 << signum);
       release(&p->lock);
       return 0;
     }
