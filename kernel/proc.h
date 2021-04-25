@@ -109,6 +109,9 @@ struct proc {
   //Ass2 - Task2
   uint32 pendingSig;
   uint32 sigMask;
+  uint32 sigMaskBackup;
   void* sigHandlers[32];
   struct trapframe* userTrapBackup;
+  //Ass 2.4 - flag that process is handling signal right now.
+  int handlingSignal;
 };

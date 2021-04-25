@@ -130,7 +130,7 @@ sys_sigaction(void)
 uint64
 sys_sigret(void)
 {
-  //TODO: Implement in task 2.4
-  //sigret();
+  //TODO: is it right?
+  sigret();
   return 0;
 }

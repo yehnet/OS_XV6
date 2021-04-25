@@ -152,7 +152,7 @@ found:
   //Ass2 Task2
   for (int i = 0; i < 32; i++)
   {
-    p->sigHandlers[i] = SIG_DFL; //TODO: check if right
+    p->sigHandlers[i] = SIG_DFL;
   }
   
   //should we initialize with sigcont on?
@@ -320,6 +320,8 @@ int fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+  //Ass 2 - Task2.4
+  np->handlingSignal = 0;
 
   // increment reference counts on open file descriptors.
   for (i = 0; i < NOFILE; i++)
@@ -669,7 +671,7 @@ uint sigprocmask(uint sigmask)
 //Ass2 - Task2
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
-  if (signum == SIGKILL || signum == SIGSTOP)
+  if (signum == SIGKILL || signum == SIGSTOP || act->sigmask < 0)
   {
     return -1;
   }
@@ -693,6 +695,11 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 void sigret()
 {
   //TODO: Implement in task 2.4
+  struct proc *p = myproc();
+  acquire(&p->lock); //TODO: Check if we need to lock.
+  p->trapframe = p->userTrapBackup;
+  p->sigMask = p->sigMaskBackup;
+  release(&p->lock);
 }
 
 // Copy to either a user address, or kernel address,
