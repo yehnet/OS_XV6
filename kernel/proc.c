@@ -150,9 +150,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
   //Ass2 Task2
+
   for (int i = 0; i < 32; i++)
   {
-    p->sigHandlers[i] = SIG_DFL;
+    p->sigHandlers[i] = (void*)SIG_DFL;
   }
   
   //should we initialize with sigcont on?
@@ -699,6 +700,7 @@ void sigret()
   acquire(&p->lock); //TODO: Check if we need to lock.
   p->trapframe = p->userTrapBackup;
   p->sigMask = p->sigMaskBackup;
+  p->handlingSignal = 0;
   release(&p->lock);
 }
 
