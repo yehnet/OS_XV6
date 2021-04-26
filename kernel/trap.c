@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sigaction.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -15,8 +16,10 @@ extern char trampoline[], uservec[], userret[];
 void kernelvec();
 
 extern int devintr();
+
 //Ass2 - Task2.4
 void handleSignals(struct proc *p);
+
 void trapinit(void)
 {
   initlock(&tickslock, "time");
@@ -102,8 +105,7 @@ void usertrapret(void)
   // we're back in user space, where usertrap() is correct.
   intr_off();
 
-  //Ass2 - Task2.4
-  handleSignals(p); //FIXME: Is it the right location?
+
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));
@@ -126,6 +128,8 @@ void usertrapret(void)
 
   // set S Exception Program Counter to the saved user pc.
   w_sepc(p->trapframe->epc);
+  //Ass2 - Task2.4
+  handleSignals(p); //FIXME: Is it the right location?
 
   // tell trampoline.S the user page table to switch to.
   uint64 satp = MAKE_SATP(p->pagetable);
@@ -239,7 +243,7 @@ int devintr()
 void handleSignals(struct proc *p)
 {
   int i = 0;
-  int singal;
+  // int singal;
   uint32 pendings = p->pendingSig;
   //Check if there are pending signals that are not blocked
   // if ((pendings != 0) && (pendings & p->sigMask) == 0)
@@ -279,7 +283,13 @@ void handleSignals(struct proc *p)
       else
       {
         //Do user space actions
+        //TODO: maybe mmove or mmcpy?
+        //Backup trapframe
         *(p->userTrapBackup) = *(p->trapframe);
+        //Bcakup signal mask
+        p->sigMaskBackup = p->sigMask;
+        p->sigMask = ((struct sigaction*)(p->sigHandlers[i]))->sigmask;
+
       }
     }
     i++;

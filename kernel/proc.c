@@ -706,6 +706,7 @@ void sigret()
   //TODO: Implement in task 2.4
   struct proc *p = myproc();
   acquire(&p->lock); //TODO: Check if we need to lock.
+  //TODO: maybe mmove or mmcpy?
   *(p->trapframe) = *(p->userTrapBackup);
   p->sigMask = p->sigMaskBackup;
   p->handlingSignal = 0;
