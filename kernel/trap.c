@@ -103,7 +103,7 @@ void usertrapret(void)
   intr_off();
 
   //Ass2 - Task2.4
-  handleSignals(p);
+  handleSignals(p); //FIXME: Is it the right location?
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));
@@ -245,14 +245,14 @@ void handleSignals(struct proc *p)
   // if ((pendings != 0) && (pendings & p->sigMask) == 0)
   // {
   p->handlingSignal = 1;
-  //Iterare over the pending signals
+  //Iterate over the pending signals
   while ((pendings >> i) != 0)
   {
     //finds the pending signal i and start handler
 
     if ((pendings & (1 << i)) != 0)
     {
-
+      //Kernel space handlers
       if (p->sigHandlers[i] == (void *)SIG_DFL)
       {
         switch (i)
@@ -275,13 +275,16 @@ void handleSignals(struct proc *p)
         //Discarding the signal
         p->pendingSig = p->pendingSig - (1 << i);
       }
+      //User space handlers
       else
       {
         //Do user space actions
+        *(p->userTrapBackup) = *(p->trapframe);
       }
     }
     i++;
   }
+  p->handlingSignal = 0;
   // }
   return;
 }

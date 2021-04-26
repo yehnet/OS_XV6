@@ -135,6 +135,14 @@ found:
     return 0;
   }
 
+  // Allocate a trapframe backup page.
+  if ((p->userTrapBackup = (struct trapframe *)kalloc()) == 0)
+  {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if (p->pagetable == 0)
@@ -153,13 +161,13 @@ found:
 
   for (int i = 0; i < 32; i++)
   {
-    p->sigHandlers[i] = (void*)SIG_DFL;
+    p->sigHandlers[i] = (void *)SIG_DFL;
   }
-  
-  //should we initialize with sigcont on?
-  p->pendingSig = 1<<SIGCONT;
 
-  //Question: where the release is happenning? 
+  //should we initialize with sigcont on?
+  p->pendingSig = 1 << SIGCONT;
+
+  //Question: where the release is happenning?
   return p;
 }
 
@@ -626,7 +634,7 @@ int kill(int pid, int signum)
     acquire(&p->lock);
     //check if signal already on
     //Do we really need to check if ZOMBIE?
-    if (((p->pendingSig & 1<<signum) == 0) && (p->pid == pid) && (p->state != ZOMBIE))
+    if (((p->pendingSig & 1 << signum) == 0) && (p->pid == pid) && (p->state != ZOMBIE))
     {
       switch (signum)
       {
@@ -698,7 +706,7 @@ void sigret()
   //TODO: Implement in task 2.4
   struct proc *p = myproc();
   acquire(&p->lock); //TODO: Check if we need to lock.
-  p->trapframe = p->userTrapBackup;
+  *(p->trapframe) = *(p->userTrapBackup);
   p->sigMask = p->sigMaskBackup;
   p->handlingSignal = 0;
   release(&p->lock);
