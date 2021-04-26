@@ -9,6 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct sigaction;
+struct thread;
 
 // bio.c
 void            binit(void);
@@ -94,6 +95,8 @@ int             kill(int, int);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
+//Ass2 - Task3
+struct thread*  myThread();
 void            procinit(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);

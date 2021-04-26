@@ -87,6 +87,16 @@ myproc(void)
   pop_off();
   return p;
 }
+//Ass2 - Task3
+// Return the current struct thred *, or zero if none.
+struct thread *
+myThread(void){
+  push_off();
+  struct cpu *c = mycpu();
+  struct thread *t = c->currThread;
+  pop_off();
+  return t;
+}
 
 int allocpid()
 {

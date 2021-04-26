@@ -1,3 +1,8 @@
+
+  //Ass2 - Task3
+#include "thread.h"
+#define NTHREAD 8
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -22,6 +27,7 @@ struct context {
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
+  struct thread *currThread;
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
 };
@@ -112,6 +118,9 @@ struct proc {
   uint32 sigMaskBackup;
   void* sigHandlers[32];
   struct trapframe* userTrapBackup;
-  //Ass 2.4 - flag that process is handling signal right now.
+  //Ass2 - Task2.4 - flag that process is handling signal right now.
   int handlingSignal;
+  //Ass2 - Task3
+  struct thread* currThreads[NTHREAD];
+
 };
