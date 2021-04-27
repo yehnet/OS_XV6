@@ -10,6 +10,9 @@
 struct spinlock tickslock;
 uint ticks;
 
+extern void* start_sigret;
+extern void* end_sigret;
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
@@ -19,6 +22,7 @@ extern int devintr();
 
 //Ass2 - Task2.4
 void handleSignals(struct proc *p);
+
 
 void trapinit(void)
 {
