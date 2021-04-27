@@ -129,6 +129,7 @@ UPROGS=\
 	$U/_sh\
 	$U/_stressfs\
 	$U/_usertests\
+	$U/_usertests_ass2\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
