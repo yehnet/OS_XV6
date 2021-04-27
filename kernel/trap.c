@@ -10,6 +10,7 @@
 struct spinlock tickslock;
 uint ticks;
 
+//sys_sigret pointers
 extern void* start_sigret;
 extern void* end_sigret;
 
@@ -293,6 +294,22 @@ void handleSignals(struct proc *p)
         p->sigMaskBackup = p->sigMask;
         p->sigMask = ((struct sigaction*)(p->sigHandlers[i]))->sigmask;
 
+        //Inject sigret to user stack
+        uint64 sigretSize = ((uint64)&end_sigret - (uint64)&start_sigret);
+        p->trapframe->sp -= sigretSize;
+        copyout(p->pagetable, (uint64)p->trapframe->sp,(char*)&start_sigret,sigretSize);
+
+        //make the return address to be the sigret
+        p->trapframe->ra = p->trapframe->sp;
+        
+        //signal number as argument for sa_handler
+        p->trapframe->a0 = i;
+
+        //The process will continue with the sa_handler
+        p->trapframe->epc = (uint64)p->sigHandlers[i];
+
+        //Discarding the signal
+        p->pendingSig -= (1 << i);
       }
     }
     i++;
