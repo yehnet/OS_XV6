@@ -256,7 +256,7 @@ void handleSignals(struct proc *p)
 
     if ((pendings & (1 << i)) != 0)
     {
-      //Kernel space handlers
+  //---------- Kernel space handlers ----------
       if (p->sigHandlers[i] == (void *)SIG_DFL)
       {
         switch (i)
@@ -272,17 +272,16 @@ void handleSignals(struct proc *p)
           break;
         }
         //Discarding the signal
-        p->pendingSig = p->pendingSig - (1 << i);
+        p->pendingSig -= (1 << i);
       }
       else if (p->sigHandlers[i] == (void *)SIG_IGN)
       {
         //Discarding the signal
-        p->pendingSig = p->pendingSig - (1 << i);
+        p->pendingSig -= (1 << i);
       }
-      //User space handlers
+  //---------- User space handlers ----------
       else
       {
-        //Do user space actions
         //TODO: maybe mmove or mmcpy?
         //Backup trapframe
         *(p->userTrapBackup) = *(p->trapframe);
