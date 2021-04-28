@@ -40,4 +40,8 @@ entry("uptime");
 entry("sigprocmask");
 entry("sigaction");
 entry("sigret");
-
+# Ass2 - Task3.2
+entry("kthread_create");
+entry("kthread_id");
+entry("kthread_exit");
+entry("kthread_join");

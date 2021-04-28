@@ -742,6 +742,29 @@ void sigret()
   release(&p->lock);
 }
 
+//Ass2 - Task 3.2
+int kthread_create (void (*start_func)(), void *stack){
+  //TODO: Implement
+  return 0;
+}
+int kthread_id(){
+  struct thread *t = myThread();
+  return t->tid;
+}
+void kthread_exit(int status){
+  //TODO: Implement
+  struct thread *t = myThread();
+  t->killed = 1;
+  t->state = ZOMBIE;
+  //TODO: I'm not sure this is enough.
+  //Why do we need the status param?
+  return;
+}
+int kthread_join(int thread_id, int* status){
+  //TODO: Implement
+  return 0;
+}
+
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.

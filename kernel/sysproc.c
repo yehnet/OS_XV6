@@ -105,7 +105,7 @@ uint64
 sys_sigprocmask(void)
 {
   uint sigmask;
-  if (argaddr(0, (uint64*)&sigmask) < 0)
+  if (argaddr(0, (uint64 *)&sigmask) < 0)
     return -1;
   return sigprocmask(sigmask);
 }
@@ -119,9 +119,9 @@ sys_sigaction(void)
   struct sigaction *oldact = 0;
   if (argint(0, &signum) < 0)
     return -1;
-  if (argaddr(1, (uint64*)act) < 0)
+  if (argaddr(1, (uint64 *)act) < 0)
     return -1;
-  if (argaddr(2, (uint64*)oldact) < 0)
+  if (argaddr(2, (uint64 *)oldact) < 0)
     return -1;
   return sigaction(signum, act, oldact);
 }
@@ -133,4 +133,46 @@ sys_sigret(void)
   //TODO: is it right?
   sigret();
   return 0;
+}
+
+//Ass2 - Task3.2
+uint64
+sys_kthread_create(void)
+{
+  void *start_func; //FIXME: Is it the right way to use void (*start_func)()?????
+  void *stack;
+
+  if (argaddr(0, (uint64 *)start_func) < 0)
+    return -1;
+  if (argaddr(1, (uint64 *)stack) < 0)
+    return -1;
+  return kthread_create(start_func, stack);
+}
+
+uint64
+sys_kthread_id(void)
+{
+  return kthread_id();
+}
+
+uint64
+sys_kthread_exit(void)
+{
+  int status;
+  if (argint(0, &status) < 0)
+    return -1;
+  kthread_exit(status);
+  return 0;
+}
+
+uint64
+sys_kthread_join(void)
+{
+  int thread_id;
+  int *status;
+  if (argint(0, &thread_id) < 0)
+    return -1;
+  if (argaddr(1, (uint64 *)status) < 0)
+    return -1;
+  return kthread_join(thread_id,status);
 }

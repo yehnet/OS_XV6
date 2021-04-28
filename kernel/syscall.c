@@ -108,6 +108,13 @@ extern uint64 sys_uptime(void);
 extern uint64 sys_sigprocmask(void);
 extern uint64 sys_sigaction(void);
 extern uint64 sys_sigret(void);
+//Ass2 - Task3.2
+extern uint64 sys_kthread_create (void) ;
+extern uint64 sys_kthread_id(void);
+extern uint64 sys_kthread_exit(void);
+extern uint64 sys_kthread_join(void);
+
+
 
 
 
@@ -137,6 +144,11 @@ static uint64 (*syscalls[])(void) = {
 [SYS_sigprocmask]   sys_sigprocmask,
 [SYS_sigaction]     sys_sigaction,
 [SYS_sigret]        sys_sigret,
+//Ass2 - Task3.2
+[SYS_kthread_create]        sys_kthread_create,
+[SYS_kthread_id]        sys_kthread_id,
+[SYS_kthread_exit]        sys_kthread_exit,
+[SYS_kthread_join]        sys_kthread_join,
 
 
 };

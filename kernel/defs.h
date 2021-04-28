@@ -113,6 +113,11 @@ void            procdump(void);
 uint            sigprocmask(uint sigmask);
 int             sigaction(int signum, const struct sigaction* act, struct sigaction* oldact);
 void            sigret(void);
+//Ass2 - Task3.2
+int             kthread_create (void (*start_func)(), void *stack) ;
+int             kthread_id();
+void            kthread_exit(int status);
+int             kthread_join(int thread_id, int* status);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
