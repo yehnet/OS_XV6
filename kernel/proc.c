@@ -709,7 +709,7 @@ uint sigprocmask(uint sigmask)
 //Ass2 - Task2
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
-  if (signum == SIGKILL || signum == SIGSTOP || act->sigmask < 0)
+  if (signum == SIGKILL || signum == SIGSTOP || act->sigmask < 0 || signum < 0)
   {
     return -1;
   }
@@ -745,6 +745,9 @@ void sigret()
 //Ass2 - Task 3.2
 int kthread_create (void (*start_func)(), void *stack){
   //TODO: Implement
+  struct thread *currThread = myThread();
+  struct thread *newThread = allocThread();
+  *newThread->trapframe = *currThread->trapframe;
   return 0;
 }
 int kthread_id(){
