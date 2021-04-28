@@ -14,7 +14,11 @@ struct proc proc[NPROC];
 struct proc *initproc;
 
 int nextpid = 1;
+int nexttid = 100;
+
 struct spinlock pid_lock;
+struct spinlock tid_lock;
+
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
@@ -110,10 +114,22 @@ int allocpid()
 
   return pid;
 }
+
+int alloctid()
+{
+  acquire(&tid_lock);
+  int tid = nexttid;
+  nexttid++;
+  release(&tid_lock);
+
+  return tid;
+}
 static struct thread *
 allocThread(void)
 {
   //TODO
+  //take a place in proc->currThreads[i] , if all is taken return as failure
+  //return 0 in case of failure
 }
 
 // Look in the process table for an UNUSED proc.
@@ -600,7 +616,9 @@ void forkret(void)
 // Reacquires lock when awakened.
 void sleep(void *chan, struct spinlock *lk)
 {
-  struct proc *p = myproc();
+  // struct proc *p = myproc();
+  //changed all function from proc (p) to thread (t).
+  struct thread *t = myThread();
 
   // Must acquire p->lock in order to
   // change p->state and then call sched.
@@ -609,20 +627,20 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
-  acquire(&p->lock); //DOC: sleeplock1
+  acquire(&t->lock); //DOC: sleeplock1
   release(lk);
 
   // Go to sleep.
-  p->chan = chan;
-  p->state = SLEEPING;
+  t->chan = chan;
+  t->state = SLEEPING;
 
   sched();
 
   // Tidy up.
-  p->chan = 0;
+  t->chan = 0;
 
   // Reacquire original lock.
-  release(&p->lock);
+  release(&t->lock);
   acquire(lk);
 }
 
@@ -742,30 +760,110 @@ void sigret()
   release(&p->lock);
 }
 
+
 //Ass2 - Task 3.2
-int kthread_create (void (*start_func)(), void *stack){
+int kthread_create(void (*start_func)(), void *stack)
+{
   //TODO: Implement
+
   struct thread *currThread = myThread();
   struct thread *newThread = allocThread();
-  *newThread->trapframe = *currThread->trapframe;
-  return 0;
+
+  if (newThread == 0)
+    return -1;
+  
+  acquire(&newThread->lock);
+
+  *(newThread->trapframe) = *(currThread->trapframe);
+  newThread->state = RUNNABLE;
+  newThread->trapframe->epc = &start_func;
+  //allocate a user stack with size MAX_STACK_SIZE
+  newThread->trapframe->sp = (int)stack + MAX_STACK_SIZE; // should be minus??
+  newThread->tid = alloctid();
+
+  release(&newThread->lock);
+
+  if(newThread->tid == -1)
+    return -1;
+
+  return newThread->tid;
 }
-int kthread_id(){
+
+int kthread_id()
+{
   struct thread *t = myThread();
   return t->tid;
 }
-void kthread_exit(int status){
+
+void kthread_exit(int status)
+{
   //TODO: Implement
   struct thread *t = myThread();
-  t->killed = 1;
+
+  //last thread of the first proc
+  // if(t == initThread)
+  //   panic("init exiting");
+
+  // last thread of the proc
+  // if (isLastThread(myProc()))
+  //   exit(status);
+
+  // acquire(&t->lock);
+  t->xstate = status;
+  //t->killed = 1;
   t->state = ZOMBIE;
+
+  sched();
+  panic("not-last thread exit");
   //TODO: I'm not sure this is enough.
   //Why do we need the status param?
   return;
 }
-int kthread_join(int thread_id, int* status){
-  //TODO: Implement
+
+struct thread *
+getThread(struct proc *p, int target_id)
+{
+
+  for (int i = 0; i < NTHREAD; i++)
+  {
+    if (p->currThreads[i]->tid == i)
+      return p->currThreads[i];
+  }
   return 0;
+}
+
+int kthread_join(int thread_id, int *status)
+{
+  //TODO: Implement
+  struct thread *t = myThread();
+  struct proc *p = myproc();
+  struct thread *targett = getThread(p, thread_id);
+
+  //thread id not exist
+  if (targett == 0)
+    return -1;
+
+  //if the target thread already terminated , no point on waiting
+  if (targett->state == ZOMBIE)
+  {
+    *status = targett->xstate;
+    return 0;
+  }
+  else
+  {
+    acquire(&wait_lock);
+    for (;;)
+    {
+      if (targett->state == ZOMBIE )
+      {
+        release(&wait_lock);
+        *status = targett->xstate;
+        return 0;
+      }
+      sleep(targett, &wait_lock); // is legal for threads too ? 
+    }
+  }
+  return -1; //what can cause error?
 }
 
 // Copy to either a user address, or kernel address,
