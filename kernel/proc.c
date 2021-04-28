@@ -90,7 +90,8 @@ myproc(void)
 //Ass2 - Task3
 // Return the current struct thred *, or zero if none.
 struct thread *
-myThread(void){
+myThread(void)
+{
   push_off();
   struct cpu *c = mycpu();
   struct thread *t = c->currThread;
@@ -419,6 +420,13 @@ void exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+
+  for (int i = 0; i < NTHREAD; i++)
+  {
+    //FIXME: how do we kill all threads
+    // p->currThreads[i]->killed = 1;
+    // p->currThreads[i]->state = ZOMBIE;
+  }
 
   release(&wait_lock);
 
