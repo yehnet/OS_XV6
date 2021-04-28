@@ -1,5 +1,7 @@
 struct thread
 {
+    struct spinlock lock;
+
     enum procstate state;        // Thread state, maybe need an enum change?????
     void *chan;                  // If non-zero, sleeping on chan
     int killed;                  // If non-zero, have been killed
@@ -11,5 +13,3 @@ struct thread
     struct proc *parent;    // Parent process - ShOuLD WE NEED THIS?
     struct context context; // swtch() here to run process
 };
-
-

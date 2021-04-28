@@ -110,6 +110,11 @@ int allocpid()
 
   return pid;
 }
+static struct thread *
+allocThread(void)
+{
+  //TODO
+}
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -119,6 +124,7 @@ static struct proc *
 allocproc(void)
 {
   struct proc *p;
+  struct thread *t; // Ass2 - Task3
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -137,9 +143,11 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->currThreads[0] = allocThread();
+  t = p->currThreads[0];
 
   // Allocate a trapframe page.
-  if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
+  if ((t->trapframe = (struct trapframe *)kalloc()) == 0)
   {
     freeproc(p);
     release(&p->lock);
@@ -188,6 +196,7 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  //TODO - free threads
   if (p->trapframe)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
@@ -314,6 +323,7 @@ int fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+  struct thread *t = myThread(); //Ass2 - Task3
 
   // Allocate process.
   if ((np = allocproc()) == 0)
@@ -331,7 +341,7 @@ int fork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
+  *(np->currThreads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
 
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
@@ -339,7 +349,7 @@ int fork(void)
   *(np->sigHandlers) = *(p->sigHandlers);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+  np->currThreads[0].trapframe->a0 = 0; //Ass2 - Task3
   //Ass 2 - Task2.4
   np->handlingSignal = 0;
 
@@ -361,6 +371,7 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  np->currThreads[0].state = RUNNABLE; //Ass2 - Task3
   release(&np->lock);
 
   return pid;
@@ -424,8 +435,8 @@ void exit(int status)
   for (int i = 0; i < NTHREAD; i++)
   {
     //FIXME: how do we kill all threads
-    // p->currThreads[i]->killed = 1;
-    // p->currThreads[i]->state = ZOMBIE;
+    // p->currThreads[i].killed = 1;
+    p->currThreads[i].state = ZOMBIE;
   }
 
   release(&wait_lock);
