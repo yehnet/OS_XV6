@@ -123,18 +123,23 @@ int alloctid()
 
   return tid;
 }
+
+//@proc p as the thread process
+//@tnum as thread number in the process thread array
 static struct thread *
-allocThread(void)
+allocThread(struct proc *p)
 {
   //TODO
   struct proc *p = myproc();
   struct thread *t;
+  struct thread *cpuThread = myThread();
   for (int i = 0; i < NTHREAD; i++)
   {
-     t = p->currThreads[i];
+    t = p->threads[i];
     acquire(&t->lock);
     if (t->state == UNUSED)
     {
+      t->myNum = i;
       goto found;
     }
     else
@@ -149,14 +154,8 @@ found:
   t->state = USED;
   t->parent = p;
 
-  // Allocate a trapframe page.
-  if ((t->trapframe = (struct trapframe *)kalloc()) == 0)
-  {
-    freeThread(t);
-    release(&t->lock);
-    return 0;
-  }
-
+  t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
+  *(t->trapframe) = *(cpuThread->trapframe);
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&t->context, 0, sizeof(t->context));
@@ -165,8 +164,8 @@ found:
 
   return t;
 
-//take a place in proc->currThreads[i] , if all is taken return as failure
-//return 0 in case of failure
+  //take a place in proc->currThreads[i] , if all is taken return as failure
+  //return 0 in case of failure
 }
 
 // Look in the process table for an UNUSED proc.
@@ -196,18 +195,24 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->currThreads[0] = allocThread();
-  t = p->currThreads[0];
 
   // Allocate a trapframe page.
-  if ((t->trapframe = (struct trapframe *)kalloc()) == 0)
+  if ((p->start = (void *)kalloc()) == 0)
   {
     freeproc(p);
     release(&p->lock);
     return 0;
   }
+  for (int i = 0; i < NTHREAD; i++)
+  {
+    //TODO: allocate memory for thread?
+    p->threads[i]->state = UNUSED;
+  }
+  allocThread(p); // alloc thread iterating on all threads starting from 0, we assume the 0 one will get back.
+  t = p->threads[0];
 
   // Allocate a trapframe backup page.
+  //TODO: Do we need to move it to thread?
   if ((p->userTrapBackup = (struct trapframe *)kalloc()) == 0)
   {
     freeproc(p);
@@ -224,11 +229,10 @@ found:
     return 0;
   }
 
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
-  memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;
+  // moved to allocthread
+  // memset(&t->context, 0, sizeof(t->context));
+  // t->context.ra = (uint64)forkret;
+  // t->context.sp = t->kstack + PGSIZE;
   //Ass2 Task2
 
   for (int i = 0; i < 32; i++)
@@ -245,7 +249,21 @@ found:
 static void
 freeThread(struct thread *t)
 {
-
+  if (t->trapframe)
+    kfree((void *)t->trapframe);
+  //Is it the right way to free kstack?
+  if (t->myNum != 0)
+    kfree(t->kstack);
+  t->kstack = 0;
+  t->trapframe = 0;
+  t->chan = 0;
+  t->state = 0;
+  t->tid = 0;
+  t->state = UNUSED;
+  t->myNum = 0;
+  t->killed = 0;
+  t->parent = 0;
+  t->xstate = 0;
 }
 // free a proc structure and the data hanging from it,
 // including user pages.
@@ -253,10 +271,11 @@ freeThread(struct thread *t)
 static void
 freeproc(struct proc *p)
 {
-  //TODO - free threads
-  if (p->trapframe)
-    kfree((void *)p->trapframe);
-  p->trapframe = 0;
+  //Free all threads
+  for (int i = 0; i < NTHREAD; i++)
+  {
+    freeThread(p->threads[i]);
+  }
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -264,7 +283,6 @@ freeproc(struct proc *p)
   p->pid = 0;
   p->parent = 0;
   p->name[0] = 0;
-  p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
@@ -398,7 +416,7 @@ int fork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
-  *(np->currThreads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
+  *(np->threads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
 
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
@@ -406,7 +424,7 @@ int fork(void)
   *(np->sigHandlers) = *(p->sigHandlers);
 
   // Cause fork to return 0 in the child.
-  np->currThreads[0].trapframe->a0 = 0; //Ass2 - Task3
+  np->threads[0].trapframe->a0 = 0; //Ass2 - Task3
   //Ass 2 - Task2.4
   np->handlingSignal = 0;
 
@@ -428,7 +446,7 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->currThreads[0].state = RUNNABLE; //Ass2 - Task3
+  np->threads[0].state = RUNNABLE; //Ass2 - Task3
   release(&np->lock);
 
   return pid;
@@ -493,7 +511,7 @@ void exit(int status)
   {
     //FIXME: how do we kill all threads
     // p->currThreads[i].killed = 1;
-    p->currThreads[i].state = ZOMBIE;
+    p->threads[i].state = ZOMBIE;
   }
 
   release(&wait_lock);
@@ -807,13 +825,13 @@ int kthread_create(void (*start_func)(), void *stack)
   //TODO: Implement
   struct proc *p = myproc();
   struct thread *currThread = myThread();
-  struct thread *newThread = allocThread();
+  struct thread *newThread = allocThread(p);
 
   if (newThread == 0)
     return -1;
 
   acquire(&newThread->lock);
-
+  newThread->kstack = kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
   *(newThread->trapframe) = *(currThread->trapframe);
   newThread->state = RUNNABLE;
   newThread->trapframe->epc = &start_func;
@@ -866,8 +884,8 @@ getThread(struct proc *p, int target_id)
 
   for (int i = 0; i < NTHREAD; i++)
   {
-    if (p->currThreads[i]->tid == i)
-      return p->currThreads[i];
+    if (p->threads[i]->tid == i)
+      return p->threads[i];
   }
   return 0;
 }

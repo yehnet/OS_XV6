@@ -2,6 +2,7 @@
 //Ass2 - Task3
 #include "thread.h"
 #define NTHREAD 8
+#define TPGSIZE PGSIZE/NTHREAD
 
 // Saved registers for kernel context switches.
 struct context
@@ -117,11 +118,13 @@ struct proc
 
   // these are private to the process, so p->lock need not be held.
   //Ass2 - Task3.1 , moved to thread
-  // uint64 kstack;               // Virtual address of kernel stack
+  //uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   //Ass2 - Task3.1 , moved to thread
   // struct trapframe *trapframe; // data page for trampoline.S
+  //
+  void* start;
   // struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE]; // Open files
   struct inode *cwd;          // Current directory
@@ -137,5 +140,5 @@ struct proc
   int handlingSignal;
 
   //Ass2 - Task3
-  struct thread *currThreads[NTHREAD];
+  struct thread *threads[NTHREAD];
 };
