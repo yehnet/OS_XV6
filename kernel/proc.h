@@ -1,6 +1,6 @@
 
 //Ass2 - Task3
-#include "thread.h"
+
 #define NTHREAD 8
 #define TPGSIZE PGSIZE/NTHREAD
 
@@ -99,7 +99,7 @@ enum procstate
   RUNNING,
   ZOMBIE
 };
-
+#include "thread.h"
 // Per-process state
 struct proc
 {
@@ -118,11 +118,11 @@ struct proc
 
   // these are private to the process, so p->lock need not be held.
   //Ass2 - Task3.1 , moved to thread
-  //uint64 kstack;               // Virtual address of kernel stack
+  uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   //Ass2 - Task3.1 , moved to thread
-  // struct trapframe *trapframe; // data page for trampoline.S
+  struct trapframe *trapframe; // data page for trampoline.S
   //
   void* start;
   // struct context context;      // swtch() here to run process

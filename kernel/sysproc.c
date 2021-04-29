@@ -139,8 +139,8 @@ sys_sigret(void)
 uint64
 sys_kthread_create(void)
 {
-  void *start_func; //FIXME: Is it the right way to use void (*start_func)()?????
-  void *stack;
+  void *start_func = 0; //FIXME: Is it the right way to use void (*start_func)()?????
+  void *stack = 0;
 
   if (argaddr(0, (uint64 *)start_func) < 0)
     return -1;
@@ -169,10 +169,10 @@ uint64
 sys_kthread_join(void)
 {
   int thread_id;
-  int *status;
+  int *status = 0;
   if (argint(0, &thread_id) < 0)
     return -1;
   if (argaddr(1, (uint64 *)status) < 0)
     return -1;
-  return kthread_join(thread_id,status);
+  return kthread_join(thread_id, status);
 }
