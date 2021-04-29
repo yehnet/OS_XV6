@@ -19,7 +19,6 @@ int nexttid = 100;
 struct spinlock pid_lock;
 struct spinlock tid_lock;
 
-
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -128,8 +127,46 @@ static struct thread *
 allocThread(void)
 {
   //TODO
-  //take a place in proc->currThreads[i] , if all is taken return as failure
-  //return 0 in case of failure
+  struct proc *p = myproc();
+  struct thread *t;
+  for (int i = 0; i < NTHREAD; i++)
+  {
+     t = p->currThreads[i];
+    acquire(&t->lock);
+    if (t->state == UNUSED)
+    {
+      goto found;
+    }
+    else
+    {
+      release(&t->lock);
+    }
+  }
+  return 0;
+
+found:
+  t->tid = alloctid();
+  t->state = USED;
+  t->parent = p;
+
+  // Allocate a trapframe page.
+  if ((t->trapframe = (struct trapframe *)kalloc()) == 0)
+  {
+    freeThread(t);
+    release(&t->lock);
+    return 0;
+  }
+
+  // Set up new context to start executing at forkret,
+  // which returns to user space.
+  memset(&t->context, 0, sizeof(t->context));
+  t->context.ra = (uint64)forkret;
+  t->context.sp = t->kstack + PGSIZE;
+
+  return t;
+
+//take a place in proc->currThreads[i] , if all is taken return as failure
+//return 0 in case of failure
 }
 
 // Look in the process table for an UNUSED proc.
@@ -205,7 +242,11 @@ found:
   //Question: where the release is happenning?
   return p;
 }
+static void
+freeThread(struct thread *t)
+{
 
+}
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
@@ -760,18 +801,17 @@ void sigret()
   release(&p->lock);
 }
 
-
 //Ass2 - Task 3.2
 int kthread_create(void (*start_func)(), void *stack)
 {
   //TODO: Implement
-
+  struct proc *p = myproc();
   struct thread *currThread = myThread();
   struct thread *newThread = allocThread();
 
   if (newThread == 0)
     return -1;
-  
+
   acquire(&newThread->lock);
 
   *(newThread->trapframe) = *(currThread->trapframe);
@@ -783,7 +823,7 @@ int kthread_create(void (*start_func)(), void *stack)
 
   release(&newThread->lock);
 
-  if(newThread->tid == -1)
+  if (newThread->tid == -1)
     return -1;
 
   return newThread->tid;
@@ -854,13 +894,13 @@ int kthread_join(int thread_id, int *status)
     acquire(&wait_lock);
     for (;;)
     {
-      if (targett->state == ZOMBIE )
+      if (targett->state == ZOMBIE)
       {
         release(&wait_lock);
         *status = targett->xstate;
         return 0;
       }
-      sleep(targett, &wait_lock); // is legal for threads too ? 
+      sleep(targett, &wait_lock); // is legal for threads too ?
     }
   }
   return -1; //what can cause error?
