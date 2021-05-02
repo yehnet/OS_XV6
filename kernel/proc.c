@@ -23,7 +23,6 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 static void freeThread(struct thread *t);
 
-
 extern char trampoline[]; // trampoline.S
 
 // helps ensure that wakeups of wait()ing
@@ -53,17 +52,20 @@ void proc_mapstacks(pagetable_t kpgtbl)
 void procinit(void)
 {
   struct proc *p;
+  struct thread *t;
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for (p = proc; p < &proc[NPROC]; p++)
   {
     initlock(&p->lock, "proc");
+
     // p->kstack = KSTACK((int)(p - proc));
     //Ass2 - Task3
-    for (int i = 0; i < NTHREAD; i++)
+    for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
-      p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
+      // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
+      t->kstack = KSTACK((int)(t - p->threads));
     }
   }
 }
@@ -139,10 +141,13 @@ allocThread(struct proc *p)
   //TODO
   // struct proc *p = myproc();
   struct thread *t;
-  struct thread *cpuThread = myThread();
-  for (int i = 0; i < NTHREAD; i++)
+  // struct thread *cpuThread = myThread();
+  int i = 0;
+  // for (int i = 0; i < NTHREAD; i++)
+  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
-    t = p->threads[i];
+    // t = p->threads[i];
+
     acquire(&t->lock);
     if (t->state == UNUSED)
     {
@@ -153,6 +158,7 @@ allocThread(struct proc *p)
     {
       release(&t->lock);
     }
+    i++;
   }
   return 0;
 
@@ -162,16 +168,17 @@ found:
   t->parent = p;
 
   t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
-  //Do we need to use mmcpy?
-  *(t->trapframe) = *(cpuThread->trapframe);
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
   {
+
     freeThread(t);
     release(&t->lock);
     return 0;
   }
+
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
   t->context.sp = t->kstack + PGSIZE;
@@ -219,12 +226,15 @@ found:
   }
   // alloc thread iterating on all threads starting from 0, we assume the 0 one will get back.
   // t = p->threads[0];
-  for (int i = 0; i < NTHREAD; i++)
-  {
-    //TODO: allocate memory for thread?
-    p->threads[i]->state = UNUSED;
-  }
-  allocThread(p);
+  // for (int i = 0; i < NTHREAD; i++)
+  // for (t=*(p->threads); t < p->threads[NTHREAD]; t++)
+  // {
+  //   acquire(&t->lock);
+  //   //TODO: allocate memory for thread?
+  //   t->state = UNUSED;
+  // }
+  ////// TODO: maybe we need to allocate all the threads in the proc???
+  // allocThread(p);
 
   // Allocate a trapframe backup page.
   //TODO: Do we need to move it to thread?
@@ -257,7 +267,6 @@ found:
 
   //should we initialize with sigcont on?
   p->pendingSig = 1 << SIGCONT;
-
   //Question: where the release is happenning?
   return p;
 }
@@ -289,7 +298,7 @@ freeproc(struct proc *p)
   //Free all threads
   for (int i = 0; i < NTHREAD; i++)
   {
-    freeThread(p->threads[i]);
+    freeThread(&p->threads[i]);
   }
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -365,7 +374,7 @@ void userinit(void)
   struct proc *p;
   p = allocproc();
   initproc = p;
-  struct thread *t = p->threads[0];
+  struct thread *t = allocThread(p);
 
   // allocate one user page and copy init's instructions
   // and data into it.
@@ -434,7 +443,7 @@ int fork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
-  *(np->threads[0]->trapframe) = *(t->trapframe); //Ass2 - Task3
+  *(np->threads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
 
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
@@ -442,7 +451,7 @@ int fork(void)
   *(np->sigHandlers) = *(p->sigHandlers);
 
   // Cause fork to return 0 in the child.
-  np->threads[0]->trapframe->a0 = 0; //Ass2 - Task3
+  np->threads[0].trapframe->a0 = 0; //Ass2 - Task3
   //Ass 2 - Task2.4
   np->handlingSignal = 0;
 
@@ -464,7 +473,7 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->threads[0]->state = RUNNABLE; //Ass2 - Task3
+  np->threads[0].state = RUNNABLE; //Ass2 - Task3
   release(&np->lock);
 
   return pid;
@@ -529,7 +538,7 @@ void exit(int status)
   {
     //FIXME: how do we kill all threads
     // p->currThreads[i].killed = 1;
-    p->threads[i]->state = ZOMBIE;
+    p->threads[i].state = ZOMBIE;
   }
 
   release(&wait_lock);
@@ -602,6 +611,7 @@ int wait(uint64 addr)
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
+  printf("Got to scheduler\n");
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -624,13 +634,13 @@ void scheduler(void)
         //TODO: Do we need to acquire threads?
         for (int i = 0; i < NTHREAD; i++)
         {
-          acquire(&p->threads[i]->lock);
-          if (p->threads[i]->state == RUNNABLE)
+          acquire(&p->threads[i].lock);
+          if (p->threads[i].state == RUNNABLE)
           {
-            p->threads[i]->state = RUNNING;
-            swtch(&c->context, &p->threads[i]->context);
+            p->threads[i].state = RUNNING;
+            swtch(&c->context, &p->threads[i].context);
           }
-          release(&p->threads[i]->lock);
+          release(&p->threads[i].lock);
         }
 
         // Process is done running for now.
@@ -760,12 +770,12 @@ void wakeup(void *chan)
     acquire(&p->lock);
     for (int i = 0; i < NTHREAD; i++)
     {
-      acquire(&p->threads[i]->lock);
-      if (p->threads[i]->state == SLEEPING && p->threads[i]->chan == chan)
+      acquire(&p->threads[i].lock);
+      if (p->threads[i].state == SLEEPING && p->threads[i].chan == chan)
       {
-        p->threads[i]->state = RUNNABLE;
+        p->threads[i].state = RUNNABLE;
       }
-      release(&p->threads[i]->lock);
+      release(&p->threads[i].lock);
     }
     release(&p->lock);
   }
@@ -881,6 +891,7 @@ int kthread_create(void (*start_func)(), void *stack)
 
   acquire(&newThread->lock);
   newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
+  //or   memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe))???;
   *(newThread->trapframe) = *(currThread->trapframe);
   newThread->state = RUNNABLE;
   newThread->trapframe->epc = (uint64)&start_func;
@@ -933,8 +944,8 @@ getThread(struct proc *p, int target_id)
 
   for (int i = 0; i < NTHREAD; i++)
   {
-    if (p->threads[i]->tid == i)
-      return p->threads[i];
+    if (p->threads[i].tid == i)
+      return &p->threads[i];
   }
   return 0;
 }

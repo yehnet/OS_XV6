@@ -140,5 +140,5 @@ struct proc
   int handlingSignal;
 
   //Ass2 - Task3
-  struct thread *threads[NTHREAD];
+  struct thread threads[NTHREAD];
 };
