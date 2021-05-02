@@ -52,9 +52,10 @@ void usertrap(void)
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
+  struct thread *t = myThread();
 
   // save user program counter.
-  p->trapframe->epc = r_sepc();
+  t->trapframe->epc = r_sepc();
 
   if (r_scause() == 8)
   {
@@ -65,7 +66,7 @@ void usertrap(void)
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
+    t->trapframe->epc += 4;
 
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
@@ -104,7 +105,8 @@ void usertrap(void)
 void usertrapret(void)
 {
   struct proc *p = myproc();
-
+  // Ass2 - Task3
+  struct thread *t = myThread();
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
@@ -117,10 +119,10 @@ void usertrapret(void)
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.
-  p->trapframe->kernel_satp = r_satp();         // kernel page table
-  p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
-  p->trapframe->kernel_trap = (uint64)usertrap;
-  p->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
+  t->trapframe->kernel_satp = r_satp();         // kernel page table
+  t->trapframe->kernel_sp = t->kstack + PGSIZE; // process's kernel stack
+  t->trapframe->kernel_trap = (uint64)usertrap;
+  t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
   // set up the registers that trampoline.S's sret will use
   // to get to user space.
@@ -132,7 +134,7 @@ void usertrapret(void)
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
-  w_sepc(p->trapframe->epc);
+  w_sepc(t->trapframe->epc);
   //Ass2 - Task2.4
   handleSignals(p); //FIXME: Is it the right location?
 
@@ -247,6 +249,7 @@ int devintr()
 //Ass2 - Task2.4
 void handleSignals(struct proc *p)
 {
+  struct thread *t = myThread();
   int i = 0;
   // int singal;
   uint32 pendings = p->pendingSig;
@@ -289,24 +292,24 @@ void handleSignals(struct proc *p)
       {
         //TODO: maybe mmove or mmcpy?
         //Backup trapframe
-        *(p->userTrapBackup) = *(p->trapframe);
+        *(t->userTrapBackup) = *(t->trapframe);
         //Bcakup signal mask
         p->sigMaskBackup = p->sigMask;
         p->sigMask = ((struct sigaction*)(p->sigHandlers[i]))->sigmask;
 
         //Inject sigret to user stack
         uint64 sigretSize = ((uint64)&end_sigret - (uint64)&start_sigret);
-        p->trapframe->sp -= sigretSize;
-        copyout(p->pagetable, (uint64)p->trapframe->sp,(char*)&start_sigret,sigretSize);
+        t->trapframe->sp -= sigretSize;
+        copyout(p->pagetable, (uint64)t->trapframe->sp,(char*)&start_sigret,sigretSize);
 
         //make the return address to be the sigret
-        p->trapframe->ra = p->trapframe->sp;
+        t->trapframe->ra = t->trapframe->sp;
         
         //signal number as argument for sa_handler
-        p->trapframe->a0 = i;
+        t->trapframe->a0 = i;
 
         //The process will continue with the sa_handler
-        p->trapframe->epc = (uint64)p->sigHandlers[i];
+        t->trapframe->epc = (uint64)p->sigHandlers[i];
 
         //Discarding the signal
         p->pendingSig -= (1 << i);

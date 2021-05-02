@@ -118,11 +118,11 @@ struct proc
 
   // these are private to the process, so p->lock need not be held.
   //Ass2 - Task3.1 , moved to thread
-  uint64 kstack;               // Virtual address of kernel stack
+  //uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   //Ass2 - Task3.1 , moved to thread
-  struct trapframe *trapframe; // data page for trampoline.S
+  //struct trapframe *trapframe; // data page for trampoline.S
   //
   void* start;
   // struct context context;      // swtch() here to run process
@@ -135,7 +135,7 @@ struct proc
   uint32 sigMask;
   uint32 sigMaskBackup;
   void *sigHandlers[32];
-  struct trapframe *userTrapBackup;
+  //struct trapframe *userTrapBackup;
   //Ass2 - Task2.4 - flag that process is handling signal right now.
   int handlingSignal;
 

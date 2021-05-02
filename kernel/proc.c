@@ -21,6 +21,8 @@ struct spinlock tid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
+static void freeThread(struct thread *t);
+
 
 extern char trampoline[]; // trampoline.S
 
@@ -57,7 +59,12 @@ void procinit(void)
   for (p = proc; p < &proc[NPROC]; p++)
   {
     initlock(&p->lock, "proc");
-    p->kstack = KSTACK((int)(p - proc));
+    // p->kstack = KSTACK((int)(p - proc));
+    //Ass2 - Task3
+    for (int i = 0; i < NTHREAD; i++)
+    {
+      p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
+    }
   }
 }
 
@@ -155,9 +162,16 @@ found:
   t->parent = p;
 
   t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
+  //Do we need to use mmcpy?
   *(t->trapframe) = *(cpuThread->trapframe);
   // Set up new context to start executing at forkret,
   // which returns to user space.
+  if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
+  {
+    freeThread(t);
+    release(&t->lock);
+    return 0;
+  }
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
   t->context.sp = t->kstack + PGSIZE;
@@ -192,7 +206,7 @@ allocproc(void)
   return 0;
 
 found:
-  
+
   p->pid = allocpid();
   p->state = USED;
 
@@ -203,22 +217,23 @@ found:
     release(&p->lock);
     return 0;
   }
+  // alloc thread iterating on all threads starting from 0, we assume the 0 one will get back.
+  // t = p->threads[0];
   for (int i = 0; i < NTHREAD; i++)
   {
     //TODO: allocate memory for thread?
     p->threads[i]->state = UNUSED;
   }
-  allocThread(p); // alloc thread iterating on all threads starting from 0, we assume the 0 one will get back.
-  // t = p->threads[0];
+  allocThread(p);
 
   // Allocate a trapframe backup page.
   //TODO: Do we need to move it to thread?
-  if ((p->userTrapBackup = (struct trapframe *)kalloc()) == 0)
-  {
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-  }
+  // if ((p->userTrapBackup = (struct trapframe *)kalloc()) == 0)
+  // {
+  //   freeproc(p);
+  //   release(&p->lock);
+  //   return 0;
+  // }
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -313,7 +328,8 @@ proc_pagetable(struct proc *p)
 
   // map the trapframe just below TRAMPOLINE, for trampoline.S.
   if (mappages(pagetable, TRAPFRAME, PGSIZE,
-               (uint64)(p->trapframe), PTE_R | PTE_W) < 0)
+               (uint64)(p->start), PTE_R | PTE_W) < 0)
+  //  (uint64)(p->trapframe), PTE_R | PTE_W) < 0)
   {
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmfree(pagetable, 0);
@@ -347,9 +363,9 @@ uchar initcode[] = {
 void userinit(void)
 {
   struct proc *p;
-
   p = allocproc();
   initproc = p;
+  struct thread *t = p->threads[0];
 
   // allocate one user page and copy init's instructions
   // and data into it.
@@ -357,15 +373,17 @@ void userinit(void)
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
-  p->trapframe->epc = 0;     // user program counter
-  p->trapframe->sp = PGSIZE; // user stack pointer
+  t->trapframe->epc = 0;     // user program counter
+  t->trapframe->sp = PGSIZE; // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  t->state = RUNNABLE;
 
   release(&p->lock);
+  release(&t->lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -586,7 +604,6 @@ void scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-
   c->proc = 0;
   for (;;)
   {
@@ -842,9 +859,10 @@ void sigret()
 {
   //TODO: Implement in task 2.4
   struct proc *p = myproc();
-  acquire(&p->lock); //TODO: Check if we need to lock.
+  struct thread *t = myThread();
+  acquire(&t->lock); //TODO: Check if we need to lock.
   //TODO: maybe mmove or mmcpy?
-  *(p->trapframe) = *(p->userTrapBackup);
+  *(t->trapframe) = *(t->userTrapBackup);
   p->sigMask = p->sigMaskBackup;
   p->handlingSignal = 0;
   release(&p->lock);

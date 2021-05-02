@@ -8,6 +8,7 @@ struct thread
     int xstate;                  // Exit status to be returned to parent's wait
     int tid;                     // Thread ID
     struct trapframe *trapframe; // data page for trampoline.S
+    struct trapframe *userTrapBackup; //trapframe back up for signal handling
     uint64 kstack;               // Virtual address of kernel stack
 
     // proc_tree_lock must be held when using this:
