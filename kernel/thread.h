@@ -11,7 +11,7 @@ struct thread
     struct trapframe *userTrapBackup; //trapframe back up for signal handling
     uint64 kstack;               // Virtual address of kernel stack
 
-    // proc_tree_lock must be held when using this:
+   // proc_tree_lock must be held when using this:
     struct proc *parent;    // Parent process - ShOuLD WE NEED THIS?
     struct context context; // swtch() here to run process
 };

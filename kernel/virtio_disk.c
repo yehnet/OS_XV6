@@ -270,9 +270,10 @@ virtio_disk_rw(struct buf *b, int write)
 
   // Wait for virtio_disk_intr() to say request has finished.
   while(b->disk == 1) {
+        printf("DEBUG ------------ze  GAM dofek et ha acquire \n");
     sleep(b, &disk.vdisk_lock);
   }
-
+printf("DEBUG ------------ze  GAM lo dofek et ha acquire \n");
   disk.info[idx[0]].b = 0;
   free_chain(idx[0]);
 

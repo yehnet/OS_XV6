@@ -125,6 +125,7 @@ int allocpid()
 
 int alloctid()
 {
+  printf("DEBUG--------------allocid acquire \n");
   acquire(&tid_lock);
   int tid = nexttid;
   nexttid++;
@@ -147,7 +148,7 @@ allocThread(struct proc *p)
   for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
     // t = p->threads[i];
-
+    printf("DEBUG--------------allocthread acquire \n");
     acquire(&t->lock);
     if (t->state == UNUSED)
     {
@@ -181,7 +182,8 @@ found:
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
-  t->context.sp = t->kstack + PGSIZE;
+  //TODO: WTF?
+  t->context.sp = t->kstack + MAX_STACK_SIZE - 16;
 
   return t;
 
@@ -295,10 +297,12 @@ freeThread(struct thread *t)
 static void
 freeproc(struct proc *p)
 {
+  struct thread *t;
   //Free all threads
-  for (int i = 0; i < NTHREAD; i++)
+  // for (int i = 0; i < NTHREAD; i++)
+  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
-    freeThread(&p->threads[i]);
+    freeThread(t);
   }
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -596,7 +600,6 @@ int wait(uint64 addr)
       release(&wait_lock);
       return -1;
     }
-
     // Wait for a child to exit.
     sleep(p, &wait_lock); //DOC: wait-sleep
   }
@@ -613,8 +616,10 @@ void scheduler(void)
 {
   printf("Got to scheduler\n");
   struct proc *p;
+  struct thread *t;
   struct cpu *c = mycpu();
   c->proc = 0;
+  c->currThread = 0;
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -631,18 +636,23 @@ void scheduler(void)
 
         p->state = RUNNING;
         c->proc = p;
-        //TODO: Do we need to acquire threads?
-        for (int i = 0; i < NTHREAD; i++)
+        for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
-          acquire(&p->threads[i].lock);
-          if (p->threads[i].state == RUNNABLE)
-          {
-            p->threads[i].state = RUNNING;
-            swtch(&c->context, &p->threads[i].context);
-          }
-          release(&p->threads[i].lock);
-        }
+          printf("DEBUG--------------scheduler acquire\n ");
+          acquire(&t->lock);
 
+          if (t->state == RUNNABLE)
+          {
+            t->state = RUNNING;
+            printf("DEBUG ------ swtch dofek\n");
+            c->currThread = t;
+            swtch(&c->context, &t->context);
+            c->currThread = 0;
+          }
+          printf("after swtch\n");
+
+          release(&t->lock);
+        }
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
@@ -695,7 +705,10 @@ void forkret(void)
   static int first = 1;
 
   // Still holding p->lock from scheduler.
+  // Still holding t->lock from scheduler.
+
   release(&myproc()->lock);
+  release(&myThread()->lock);
 
   if (first)
   {
@@ -703,9 +716,10 @@ void forkret(void)
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
     first = 0;
+    printf("DEBUG ------ fsinit dofek\n");
+
     fsinit(ROOTDEV);
   }
-
   usertrapret();
 }
 
@@ -724,7 +738,9 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
+  printf("DEBUG --------------SLEEP  acquire \n");
   acquire(&t->lock); //DOC: sleeplock1
+  printf("DEBUG --------------lo lo SLEEP  acquire \n");
   release(lk);
 
   // Go to sleep.
@@ -870,6 +886,8 @@ void sigret()
   //TODO: Implement in task 2.4
   struct proc *p = myproc();
   struct thread *t = myThread();
+
+  printf("DEBUG --------------sigret acquire \n");
   acquire(&t->lock); //TODO: Check if we need to lock.
   //TODO: maybe mmove or mmcpy?
   *(t->trapframe) = *(t->userTrapBackup);
@@ -978,6 +996,7 @@ int kthread_join(int thread_id, int *status)
         *status = targett->xstate;
         return 0;
       }
+
       sleep(targett, &wait_lock); // is legal for threads too ?
     }
   }
