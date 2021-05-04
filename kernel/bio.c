@@ -102,10 +102,7 @@ bread(uint dev, uint blockno)
 
   if (!b->valid)
   {
-    printf("DEBUG------ vitrio dofek\n");
     virtio_disk_rw(b, 0);
-    printf("DEBUG------ vitrio lo dofek\n");
-
     b->valid = 1;
   }
   return b;

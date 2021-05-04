@@ -553,7 +553,8 @@ void exit(int status)
     t->state = ZOMBIE;
     release(&t->lock);
   }
-
+  //TODO: Do we need this?
+  acquire(&myThread()->lock);
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.
@@ -568,6 +569,7 @@ int wait(uint64 addr)
   struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
+  struct thread *t = myThread();
 
   acquire(&wait_lock);
 
@@ -610,7 +612,7 @@ int wait(uint64 addr)
       return -1;
     }
     // Wait for a child to exit.
-    sleep(p, &wait_lock); //DOC: wait-sleep
+    sleep(t, &wait_lock); //DOC: wait-sleep
   }
 }
 
@@ -623,7 +625,7 @@ int wait(uint64 addr)
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
-  printf("Got to scheduler\n");
+  printf("DEBUG -------- CPU %d Got to scheduler --------\n", cpuid());
   struct proc *p;
   struct thread *t;
   struct cpu *c = mycpu();
@@ -636,6 +638,8 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
+      // printf("DEBUG ---- CPU %d acquire proc %d\n", cpuid(), p->pid);
+
       if (p->state == RUNNABLE)
       {
         // Switch to chosen process.  It is the process's job
@@ -647,24 +651,25 @@ void scheduler(void)
 
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
-          printf("DEBUG--------------scheduler acquire\n ");
           acquire(&t->lock);
+          printf("DEBUG ---- CPU %d acquire thread %d\n", cpuid(), t->tid);
+
           if (t->state == RUNNABLE)
           {
             t->state = RUNNING;
-            printf("DEBUG ------swtch dofek\n");
             c->currThread = t;
             swtch(&c->context, &t->context);
             c->currThread = 0;
           }
-          printf("DEBUG ------after swtch\n");
-
+          printf("DEBUG ---- swtch done\n");
+          printf("DEBUG ---- CPU %d release thread %d\n", cpuid(), t->tid);
           release(&t->lock);
         }
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
       }
+      // printf("DEBUG ---- CPU %d release proc %d\n", cpuid(), p->pid);
       release(&p->lock);
     }
   }
@@ -686,8 +691,10 @@ void sched(void)
     panic("sched p->lock");
   if (!holding(&t->lock))
     panic("sched t->lock");
-  if (mycpu()->noff != 1)
+  if (mycpu()->noff != 2)
+  {
     panic("sched locks");
+  }
   if (t->state == RUNNING)
     panic("sched running");
   if (intr_get())
@@ -697,17 +704,28 @@ void sched(void)
   swtch(&t->context, &mycpu()->context);
   mycpu()->intena = intena;
 }
+// //Proc yield
+// // Give up the CPU for one scheduling round.
+// void yield(void)
+// {
+//   struct proc *p = myproc();
+//   acquire(&p->lock);
+//   p->state = RUNNABLE;
+//   sched();
+//   release(&p->lock);
+// }
 
+//Thread yield
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
-  struct proc *p = myproc();
-  acquire(&p->lock);
-  p->state = RUNNABLE;
+  struct thread *t = myThread();
+  acquire(&t->lock);
+  t->state = RUNNABLE;
+  acquire(&myproc()->lock);
   sched();
-  release(&p->lock);
+  release(&t->lock);
 }
-
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void)
@@ -726,8 +744,6 @@ void forkret(void)
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
     first = 0;
-    printf("DEBUG ------ fsinit dofek\n");
-
     fsinit(ROOTDEV);
   }
   usertrapret();
@@ -737,7 +753,7 @@ void forkret(void)
 // Reacquires lock when awakened.
 void sleep(void *chan, struct spinlock *lk)
 {
-  // struct proc *p = myproc();
+  struct proc *p = myproc();
   //changed all function from proc (p) to thread (t).
   struct thread *t = myThread();
 
@@ -748,9 +764,8 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
-  printf("DEBUG --------------SLEEP  acquire \n");
+  acquire(&p->lock); //DOC: sleeplock1
   acquire(&t->lock); //DOC: sleeplock1
-  printf("DEBUG --------------lo lo SLEEP  acquire \n");
   release(lk);
 
   // Go to sleep.
@@ -764,6 +779,7 @@ void sleep(void *chan, struct spinlock *lk)
 
   // Reacquire original lock.
   release(&t->lock);
+  release(&p->lock);
   acquire(lk);
 }
 
@@ -798,12 +814,17 @@ void wakeup(void *chan)
     // or (int i = 0; i < NTHREAD; i++)
     for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
-      acquire(&t->lock);
-      if (t->state == SLEEPING && t->chan == chan)
+      //TODO: Cehck if right
+      if (t != myThread())
       {
-        t->state = RUNNABLE;
+        acquire(&t->lock);
+        if (t->state == SLEEPING && t->chan == chan)
+        {
+          t->state = RUNNABLE;
+          p->state = RUNNABLE;
+        }
+        release(&t->lock);
       }
-      release(&t->lock);
     }
     release(&p->lock);
   }
