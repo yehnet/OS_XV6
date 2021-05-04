@@ -166,6 +166,7 @@ void kerneltrap()
   {
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    // printf("DEBUG ----- proc pid: %d\nthread tid: %d\n",myproc()->pid, myThread()->tid);
     panic("kerneltrap");
   }
 

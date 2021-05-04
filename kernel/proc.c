@@ -60,13 +60,15 @@ void procinit(void)
   {
     initlock(&p->lock, "proc");
 
-    // p->kstack = KSTACK((int)(p - proc));
+    p->kstack = KSTACK((int)(p - proc));
     //Ass2 - Task3
     for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
-      // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
-      t->kstack = KSTACK((int)(t - p->threads));
+      initlock(&t->lock, "thread");
     }
+    //     // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
+    //     t->kstack = KSTACK((int)(t - p->threads));
+    //   }
   }
 }
 
@@ -158,6 +160,10 @@ allocThread(struct proc *p)
     else
     {
       release(&t->lock);
+      if (t->state == ZOMBIE)
+      {
+        freeThread(t);
+      }
     }
     i++;
   }
@@ -167,14 +173,14 @@ found:
   t->tid = alloctid();
   t->state = USED;
   t->parent = p;
-
+  t->killed = 0;
+  t->kstack = (uint64)kalloc();
   t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
-
+  // t->trapframe->sp = t->kstack + PGSIZE;
   // Set up new context to start executing at forkret,
   // which returns to user space.
   if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
   {
-
     freeThread(t);
     release(&t->lock);
     return 0;
@@ -183,7 +189,7 @@ found:
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
   //TODO: WTF?
-  t->context.sp = t->kstack + MAX_STACK_SIZE - 16;
+  t->context.sp = t->kstack + PGSIZE;
 
   return t;
 
@@ -392,11 +398,11 @@ void userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
   t->state = RUNNABLE;
+  p->state = RUNNABLE;
 
-  release(&p->lock);
   release(&t->lock);
+  release(&p->lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -505,7 +511,7 @@ void reparent(struct proc *p)
 void exit(int status)
 {
   struct proc *p = myproc();
-
+  struct thread *t;
   if (p == initproc)
     panic("init exiting");
 
@@ -538,11 +544,14 @@ void exit(int status)
   p->xstate = status;
   p->state = ZOMBIE;
 
-  for (int i = 0; i < NTHREAD; i++)
+  // for (int i = 0; i < NTHREAD; i++)
+  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
     //FIXME: how do we kill all threads
     // p->currThreads[i].killed = 1;
-    p->threads[i].state = ZOMBIE;
+    acquire(&t->lock);
+    t->state = ZOMBIE;
+    release(&t->lock);
   }
 
   release(&wait_lock);
@@ -624,7 +633,6 @@ void scheduler(void)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
@@ -636,20 +644,20 @@ void scheduler(void)
 
         p->state = RUNNING;
         c->proc = p;
+
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
           printf("DEBUG--------------scheduler acquire\n ");
           acquire(&t->lock);
-
           if (t->state == RUNNABLE)
           {
             t->state = RUNNING;
-            printf("DEBUG ------ swtch dofek\n");
+            printf("DEBUG ------swtch dofek\n");
             c->currThread = t;
             swtch(&c->context, &t->context);
             c->currThread = 0;
           }
-          printf("after swtch\n");
+          printf("DEBUG ------after swtch\n");
 
           release(&t->lock);
         }
@@ -676,6 +684,8 @@ void sched(void)
   struct thread *t = myThread();
   if (!holding(&p->lock))
     panic("sched p->lock");
+  if (!holding(&t->lock))
+    panic("sched t->lock");
   if (mycpu()->noff != 1)
     panic("sched locks");
   if (t->state == RUNNING)
@@ -780,18 +790,20 @@ void sleep(void *chan, struct spinlock *lk)
 void wakeup(void *chan)
 {
   struct proc *p;
+  struct thread *t;
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
-    for (int i = 0; i < NTHREAD; i++)
+    // or (int i = 0; i < NTHREAD; i++)
+    for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
-      acquire(&p->threads[i].lock);
-      if (p->threads[i].state == SLEEPING && p->threads[i].chan == chan)
+      acquire(&t->lock);
+      if (t->state == SLEEPING && t->chan == chan)
       {
-        p->threads[i].state = RUNNABLE;
+        t->state = RUNNABLE;
       }
-      release(&p->threads[i].lock);
+      release(&t->lock);
     }
     release(&p->lock);
   }
@@ -908,13 +920,13 @@ int kthread_create(void (*start_func)(), void *stack)
     return -1;
 
   acquire(&newThread->lock);
-  newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
-  //or   memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe))???;
-  *(newThread->trapframe) = *(currThread->trapframe);
+  // newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
+  memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe));
+  //or *(newThread->trapframe) = *(currThread->trapframe);
   newThread->state = RUNNABLE;
   newThread->trapframe->epc = (uint64)&start_func;
   //allocate a user stack with size MAX_STACK_SIZE
-  newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE; // should be minus??
+  newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE - 16; // should be minus??
   newThread->tid = alloctid();
 
   release(&newThread->lock);
@@ -959,11 +971,12 @@ void kthread_exit(int status)
 struct thread *
 getThread(struct proc *p, int target_id)
 {
-
-  for (int i = 0; i < NTHREAD; i++)
+  struct thread *t;
+  // for (int i = 0; i < NTHREAD; i++)
+  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
-    if (p->threads[i].tid == i)
-      return &p->threads[i];
+    if (t->tid == target_id)
+      return t;
   }
   return 0;
 }
