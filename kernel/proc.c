@@ -44,6 +44,7 @@ void proc_mapstacks(pagetable_t kpgtbl)
     if (pa == 0)
       panic("kalloc");
     uint64 va = KSTACK((int)(p - proc));
+    // uint64 va = KSTACK((int)(p - proc));
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
 }
@@ -56,15 +57,18 @@ void procinit(void)
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+  initlock(&tid_lock, "nexttid");
+
+
   for (p = proc; p < &proc[NPROC]; p++)
   {
     initlock(&p->lock, "proc");
-
     p->kstack = KSTACK((int)(p - proc));
     //Ass2 - Task3
     for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
       initlock(&t->lock, "thread");
+      // t->kstack = KSTACK((int)((p-proc)*8 +(t-p->threads)));
     }
     //     // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
     //     t->kstack = KSTACK((int)(t - p->threads));
@@ -172,7 +176,6 @@ found:
 
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
-    
     freeThread(t);
     release(&t->lock);
     return 0;
