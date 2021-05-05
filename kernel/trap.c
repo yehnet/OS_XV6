@@ -41,6 +41,7 @@ void trapinithart(void)
 //
 void usertrap(void)
 {
+  printf("DEBUG ---- Got to usertrap\n");
   int which_dev = 0;
 
   if ((r_sstatus() & SSTATUS_SPP) != 0)
@@ -144,8 +145,8 @@ void usertrapret(void)
   // and switches to user mode with sret.
   // uint64 fn = TRAMPOLINE + sizeof(struct trapframe) * (t - p->threads);
   uint64 fn = TRAMPOLINE + (userret - trampoline);
-  uint64 tfOffset = sizeof(struct trapframe)*(t-p->threads);
-  ((void (*)(uint64, uint64))fn)(TRAPFRAME+ tfOffset, satp);
+  uint64 tfOffset = sizeof(struct trapframe) * (t - p->threads);
+  ((void (*)(uint64, uint64))fn)(TRAPFRAME + tfOffset, satp);
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,

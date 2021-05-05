@@ -172,6 +172,7 @@ found:
 
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
+    
     freeThread(t);
     release(&t->lock);
     return 0;
@@ -196,6 +197,7 @@ found:
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
+  printf("DEBUG ---- Passed forkret\n");
   //TODO: WTF?
   t->context.sp = t->kstack + PGSIZE;
 
@@ -660,7 +662,7 @@ void scheduler(void)
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
           acquire(&t->lock);
-          // printf("DEBUG ---- CPU %d acquire thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
+          printf("DEBUG ---- CPU %d acquire thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
 
           if (t->state == RUNNABLE)
           {
@@ -669,8 +671,8 @@ void scheduler(void)
             swtch(&c->context, &t->context);
             c->currThread = 0;
           }
-          // printf("DEBUG ---- swtch done\n");
-          // printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
+          printf("DEBUG ---- swtch done\n");
+          printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
           release(&t->lock);
         }
         // Process is done running for now.
