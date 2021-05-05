@@ -127,7 +127,7 @@ int allocpid()
 
 int alloctid()
 {
-  printf("DEBUG--------------allocid acquire \n");
+  // printf("DEBUG--------------allocid acquire \n");
   acquire(&tid_lock);
   int tid = nexttid;
   nexttid++;
@@ -142,28 +142,23 @@ static struct thread *
 allocThread(struct proc *p)
 {
   //TODO
-  // struct proc *p = myproc();
   struct thread *t;
-  // struct thread *cpuThread = myThread();
   int i = 0;
-  // for (int i = 0; i < NTHREAD; i++)
   for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
-    // t = p->threads[i];
-    printf("DEBUG--------------allocthread acquire \n");
+    // printf("DEBUG--------------allocthread acquire \n");
     acquire(&t->lock);
     if (t->state == UNUSED)
     {
       t->myNum = i;
+      i++;
       goto found;
     }
-    else
+    else if (t->state == ZOMBIE)
     {
+      freeThread(t);
       release(&t->lock);
-      if (t->state == ZOMBIE)
-      {
-        freeThread(t);
-      }
+      i++;
     }
     i++;
   }
@@ -174,8 +169,21 @@ found:
   t->state = USED;
   t->parent = p;
   t->killed = 0;
-  t->kstack = (uint64)kalloc();
-  t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
+
+  if ((t->kstack = (uint64)kalloc()) == 0)
+  {
+    freeThread(t);
+    release(&t->lock);
+    return 0;
+  }
+  // t->kstack = (uint64)kalloc();
+  // t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
+  printf("DEBUG ---- t->myNum: %d\n", t->myNum);
+  printf("DEBUG ---- (t-p->threads): %d\n", (t - p->threads));
+  printf("DEBUG ---- sizeof(struct trapframe): %d\n", sizeof(struct trapframe));
+
+  t->trapframe = (struct trapframe *)(p->start + ((t - p->threads) * sizeof(struct trapframe)));
+
   // t->trapframe->sp = t->kstack + PGSIZE;
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -226,7 +234,7 @@ found:
   p->state = USED;
 
   // Allocate a trapframe page.
-  if ((p->start = (void *)kalloc()) == 0)
+  if ((p->start = (struct trapframe*)kalloc()) == 0)
   {
     freeproc(p);
     release(&p->lock);
@@ -238,7 +246,7 @@ found:
   // for (t=*(p->threads); t < p->threads[NTHREAD]; t++)
   // {
   //   acquire(&t->lock);
-  //   //TODO: allocate memory for thread?
+  //   // TODO: allocate memory for thread?
   //   t->state = UNUSED;
   // }
   ////// TODO: maybe we need to allocate all the threads in the proc???
@@ -625,7 +633,7 @@ int wait(uint64 addr)
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
-  printf("DEBUG -------- CPU %d Got to scheduler --------\n", cpuid());
+  // printf("DEBUG -------- CPU %d Got to scheduler --------\n", cpuid());
   struct proc *p;
   struct thread *t;
   struct cpu *c = mycpu();
@@ -652,7 +660,7 @@ void scheduler(void)
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
           acquire(&t->lock);
-          printf("DEBUG ---- CPU %d acquire thread %d\n", cpuid(), t->tid);
+          // printf("DEBUG ---- CPU %d acquire thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
 
           if (t->state == RUNNABLE)
           {
@@ -661,8 +669,8 @@ void scheduler(void)
             swtch(&c->context, &t->context);
             c->currThread = 0;
           }
-          printf("DEBUG ---- swtch done\n");
-          printf("DEBUG ---- CPU %d release thread %d\n", cpuid(), t->tid);
+          // printf("DEBUG ---- swtch done\n");
+          // printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
           release(&t->lock);
         }
         // Process is done running for now.
@@ -730,6 +738,8 @@ void yield(void)
 // will swtch to forkret.
 void forkret(void)
 {
+  printf("DEBUG ---- Got to forkret\n");
+
   static int first = 1;
 
   // Still holding p->lock from scheduler.
@@ -920,7 +930,7 @@ void sigret()
   struct proc *p = myproc();
   struct thread *t = myThread();
 
-  printf("DEBUG --------------sigret acquire \n");
+  // printf("DEBUG --------------sigret acquire \n");
   acquire(&t->lock); //TODO: Check if we need to lock.
   //TODO: maybe mmove or mmcpy?
   *(t->trapframe) = *(t->userTrapBackup);

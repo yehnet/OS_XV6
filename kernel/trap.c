@@ -11,8 +11,8 @@ struct spinlock tickslock;
 uint ticks;
 
 //sys_sigret pointers
-extern void* start_sigret;
-extern void* end_sigret;
+extern void *start_sigret;
+extern void *end_sigret;
 
 extern char trampoline[], uservec[], userret[];
 
@@ -23,7 +23,6 @@ extern int devintr();
 
 //Ass2 - Task2.4
 void handleSignals(struct proc *p);
-
 
 void trapinit(void)
 {
@@ -104,6 +103,7 @@ void usertrap(void)
 //
 void usertrapret(void)
 {
+  printf("DEBUG ---- Got to usertrapret\n");
   struct proc *p = myproc();
   // Ass2 - Task3
   struct thread *t = myThread();
@@ -111,8 +111,6 @@ void usertrapret(void)
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
   intr_off();
-
-
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));
@@ -144,8 +142,10 @@ void usertrapret(void)
   // jump to trampoline.S at the top of memory, which
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
+  // uint64 fn = TRAMPOLINE + sizeof(struct trapframe) * (t - p->threads);
   uint64 fn = TRAMPOLINE + (userret - trampoline);
-  ((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);
+  uint64 tfOffset = sizeof(struct trapframe)*(t-p->threads);
+  ((void (*)(uint64, uint64))fn)(TRAPFRAME+ tfOffset, satp);
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
@@ -265,7 +265,7 @@ void handleSignals(struct proc *p)
 
     if ((pendings & (1 << i)) != 0)
     {
-  //---------- Kernel space handlers ----------
+      //---------- Kernel space handlers ----------
       if (p->sigHandlers[i] == (void *)SIG_DFL)
       {
         switch (i)
@@ -288,7 +288,7 @@ void handleSignals(struct proc *p)
         //Discarding the signal
         p->pendingSig -= (1 << i);
       }
-  //---------- User space handlers ----------
+      //---------- User space handlers ----------
       else
       {
         //TODO: maybe mmove or mmcpy?
@@ -296,16 +296,16 @@ void handleSignals(struct proc *p)
         *(t->userTrapBackup) = *(t->trapframe);
         //Bcakup signal mask
         p->sigMaskBackup = p->sigMask;
-        p->sigMask = ((struct sigaction*)(p->sigHandlers[i]))->sigmask;
+        p->sigMask = ((struct sigaction *)(p->sigHandlers[i]))->sigmask;
 
         //Inject sigret to user stack
         uint64 sigretSize = ((uint64)&end_sigret - (uint64)&start_sigret);
         t->trapframe->sp -= sigretSize;
-        copyout(p->pagetable, (uint64)t->trapframe->sp,(char*)&start_sigret,sigretSize);
+        copyout(p->pagetable, (uint64)t->trapframe->sp, (char *)&start_sigret, sigretSize);
 
         //make the return address to be the sigret
         t->trapframe->ra = t->trapframe->sp;
-        
+
         //signal number as argument for sa_handler
         t->trapframe->a0 = i;
 
