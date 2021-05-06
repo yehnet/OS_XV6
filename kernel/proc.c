@@ -59,7 +59,6 @@ void procinit(void)
   initlock(&wait_lock, "wait_lock");
   initlock(&tid_lock, "nexttid");
 
-
   for (p = proc; p < &proc[NPROC]; p++)
   {
     initlock(&p->lock, "proc");
@@ -68,11 +67,11 @@ void procinit(void)
     for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
       initlock(&t->lock, "thread");
-      // t->kstack = KSTACK((int)((p-proc)*8 +(t-p->threads)));
+      t->kstack = KSTACK((int)((p - proc) * 8 + (t - p->threads)));
+
+      //     // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
+      // t->kstack = KSTACK((int)(t - p->threads));
     }
-    //     // p->threads[i]->kstack = KSTACK((int)(p->threads[i] - p->threads[0]));
-    //     t->kstack = KSTACK((int)(t - p->threads));
-    //   }
   }
 }
 
@@ -173,6 +172,7 @@ found:
   t->state = USED;
   t->parent = p;
   t->killed = 0;
+  t->chan = 0;
 
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
@@ -182,12 +182,15 @@ found:
   }
   // t->kstack = (uint64)kalloc();
   // t->trapframe = (struct trapframe *)(p->start + (t->myNum * TPGSIZE));
-  printf("DEBUG ---- t->myNum: %d\n", t->myNum);
-  printf("DEBUG ---- (t-p->threads): %d\n", (t - p->threads));
-  printf("DEBUG ---- sizeof(struct trapframe): %d\n", sizeof(struct trapframe));
+  // printf("DEBUG ---- t->myNum: %d\n", t->myNum);
+  // printf("DEBUG ---- (t-p->threads): %d\n", (t - p->threads));
+  // printf("DEBUG ---- sizeof(struct trapframe): %d\n", sizeof(struct trapframe));
 
-  t->trapframe = (struct trapframe *)(p->start + ((t - p->threads) * sizeof(struct trapframe)));
-
+  // printf("DEBUG >>>> assign tf in allocthread \t in proc %d \n", p->pid);
+  // t->trapframe = (struct trapframe *)(p->start + ((t - p->threads) * sizeof(struct trapframe)));
+  t->trapframe = (struct trapframe *)p->start + t->myNum;
+  // t->trapframe = (struct trapframe *) ((uint64)(p->start) + (uint64)((t->myNum)*sizeof(struct trapframe)));
+  // printf("DEBUG ******* %p \t in proc %d\n", p->start, p->pid);
   // t->trapframe->sp = t->kstack + PGSIZE;
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -200,7 +203,7 @@ found:
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
-  printf("DEBUG ---- Passed forkret\n");
+  // printf("DEBUG ---- Passed forkret\n");
   //TODO: WTF?
   t->context.sp = t->kstack + PGSIZE;
 
@@ -239,7 +242,7 @@ found:
   p->state = USED;
 
   // Allocate a trapframe page.
-  if ((p->start = (struct trapframe*)kalloc()) == 0)
+  if ((p->start = kalloc()) == 0)
   {
     freeproc(p);
     release(&p->lock);
@@ -317,12 +320,12 @@ static void
 freeproc(struct proc *p)
 {
   struct thread *t;
-  //Free all threads
-  // for (int i = 0; i < NTHREAD; i++)
-  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
-  {
-    freeThread(t);
-  }
+  // Free all threads
+  for (int i = 0; i < NTHREAD; i++)
+    for (t = p->threads; t < &p->threads[NTHREAD]; t++)
+    {
+      freeThread(t);
+    }
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -455,6 +458,8 @@ int fork(void)
   {
     return -1;
   }
+  //FIXME: the right way to assign thread* to thread ?
+  np->threads[0] = *allocThread(np);
 
   // Copy user memory from parent to child.
   if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
@@ -464,10 +469,9 @@ int fork(void)
     return -1;
   }
   np->sz = p->sz;
-
   // copy saved user registers.
-  *(np->threads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
-
+  // *(np->threads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
+  *(np->threads[0].trapframe) = *(t->trapframe);
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
   np->sigMask = p->sigMask;
@@ -569,7 +573,6 @@ void exit(int status)
   //TODO: Do we need this?
   acquire(&myThread()->lock);
   release(&wait_lock);
-
   // Jump into the scheduler, never to return.
   sched();
   panic("zombie exit");
@@ -644,8 +647,10 @@ void scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
   c->currThread = 0;
+  // uint64 it = 0;
   for (;;)
   {
+    // printf("DEBUG ---- scheduler iteration %d\n", it++);
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     for (p = proc; p < &proc[NPROC]; p++)
@@ -653,29 +658,30 @@ void scheduler(void)
       acquire(&p->lock);
       // printf("DEBUG ---- CPU %d acquire proc %d\n", cpuid(), p->pid);
 
-      if (p->state == RUNNABLE)
+      if (p->state == RUNNABLE || p->state == RUNNING)
       {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
-
         p->state = RUNNING;
         c->proc = p;
 
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
         {
           acquire(&t->lock);
-          printf("DEBUG ---- CPU %d acquire thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
+          // printf("DEBUG ---- CPU %d acquire thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
 
           if (t->state == RUNNABLE)
           {
+            // printf("%d:\tfound thread to run\n",cpuid());
+
             t->state = RUNNING;
             c->currThread = t;
             swtch(&c->context, &t->context);
             c->currThread = 0;
           }
-          printf("DEBUG ---- swtch done\n");
-          printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
+          // printf("DEBUG ---- swtch done\n");
+          // printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
           release(&t->lock);
         }
         // Process is done running for now.
@@ -732,27 +738,31 @@ void sched(void)
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
+  struct proc *p = myproc();
   struct thread *t = myThread();
+  acquire(&p->lock);
+  p->state = RUNNABLE;
   acquire(&t->lock);
   t->state = RUNNABLE;
-  acquire(&myproc()->lock);
+  // printf("DEBUG ***** yield sched,\t proc %d \t thread %d\n", p->pid, t->tid);
+
   sched();
   release(&t->lock);
+  release(&p->lock);
 }
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void)
 {
-  printf("DEBUG ---- Got to forkret\n");
+  // printf("DEBUG ---- Got to forkret\n");
 
   static int first = 1;
 
   // Still holding p->lock from scheduler.
   // Still holding t->lock from scheduler.
 
-  release(&myproc()->lock);
   release(&myThread()->lock);
-
+  release(&myproc()->lock);
   if (first)
   {
     // File system initialization must be run in the context of a
@@ -761,6 +771,7 @@ void forkret(void)
     first = 0;
     fsinit(ROOTDEV);
   }
+
   usertrapret();
 }
 
@@ -786,6 +797,7 @@ void sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   t->chan = chan;
   t->state = SLEEPING;
+  // printf("DEBUG ***** sleep sched,\t proc %d \t thread %d\n", p->pid, t->tid);
 
   sched();
 
@@ -836,7 +848,6 @@ void wakeup(void *chan)
         if (t->state == SLEEPING && t->chan == chan)
         {
           t->state = RUNNABLE;
-          p->state = RUNNABLE;
         }
         release(&t->lock);
       }
@@ -851,6 +862,7 @@ void wakeup(void *chan)
 int kill(int pid, int signum)
 {
   struct proc *p;
+  struct thread *t;
 
   if (signum < 0)
   {
@@ -872,6 +884,14 @@ int kill(int pid, int signum)
         {
           // Wake process from sleep().
           p->state = RUNNABLE;
+          //FIXME: is it ok?
+          for (t = p->threads; t < &p->threads[NTHREAD]; t++)
+          {
+            acquire(&t->lock);
+            t->killed = 1;
+            t->state = RUNNABLE;
+            release(&t->lock);
+          }
         }
         break;
         //Ass2 - Task2
