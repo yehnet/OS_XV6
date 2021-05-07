@@ -451,6 +451,7 @@ int fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+  struct thread *nt;             //Ass2 - Task3
   struct thread *t = myThread(); //Ass2 - Task3
 
   // Allocate process.
@@ -459,7 +460,12 @@ int fork(void)
     return -1;
   }
   //FIXME: the right way to assign thread* to thread ?
-  np->threads[0] = *allocThread(np);
+  // np->threads[0] = *allocThread(np);
+  // Allocate thread.
+  if ((nt = allocThread(np)) == 0)
+  {
+    return -1;
+  }
 
   // Copy user memory from parent to child.
   if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
@@ -471,14 +477,16 @@ int fork(void)
   np->sz = p->sz;
   // copy saved user registers.
   // *(np->threads[0].trapframe) = *(t->trapframe); //Ass2 - Task3
-  *(np->threads[0].trapframe) = *(t->trapframe);
+  *(nt->trapframe) = *(t->trapframe);
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
   np->sigMask = p->sigMask;
   *(np->sigHandlers) = *(p->sigHandlers);
 
   // Cause fork to return 0 in the child.
-  np->threads[0].trapframe->a0 = 0; //Ass2 - Task3
+  // np->threads[0].trapframe->a0 = 0; //Ass2 - Task3
+  nt->trapframe->a0 = 0; //Ass2 - Task3
+
   //Ass 2 - Task2.4
   np->handlingSignal = 0;
 
@@ -491,7 +499,7 @@ int fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  release(&nt->lock);
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -500,7 +508,9 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->threads[0].state = RUNNABLE; //Ass2 - Task3
+  // np->threads[0].state = RUNNABLE; //Ass2 - Task3
+  nt->state = RUNNABLE; //Ass2 - Task3
+
   release(&np->lock);
 
   return pid;
