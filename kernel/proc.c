@@ -512,7 +512,7 @@ int fork(void)
   nt->state = RUNNABLE; //Ass2 - Task3
 
   release(&np->lock);
-
+  // printf("DEBUG ---- thread %d of proc %s was forked\n", nt->tid, nt->parent->name);
   return pid;
 }
 
@@ -537,8 +537,11 @@ void reparent(struct proc *p)
 // until its parent calls wait().
 void exit(int status)
 {
+
   struct proc *p = myproc();
-  struct thread *t;
+  struct thread *t = myThread();
+  struct thread *wt;
+
   if (p == initproc)
     panic("init exiting");
 
@@ -564,26 +567,34 @@ void exit(int status)
   reparent(p);
 
   // Parent might be sleeping in wait().
-  wakeup(p->parent);
+
+  for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
+  {
+    // printf("DEBUG ---- Trying to wake up proc on chan %p %d\n", (void *)wt, p->parent->pid);
+    wakeup(wt);
+  }
+  // wakeup(p->parent);
 
   acquire(&p->lock);
 
   p->xstate = status;
   p->state = ZOMBIE;
+  t->state = ZOMBIE;
 
   // for (int i = 0; i < NTHREAD; i++)
-  for (t = p->threads; t < &p->threads[NTHREAD]; t++)
-  {
-    //FIXME: how do we kill all threads
-    // p->currThreads[i].killed = 1;
-    acquire(&t->lock);
-    t->state = ZOMBIE;
-    release(&t->lock);
-  }
+  // for (t = p->threads; t < &p->threads[NTHREAD]; t++)
+  // {
+  //   //FIXME: how do we kill all threads
+  //   // p->currThreads[i].killed = 1;
+  //   acquire(&t->lock);
+  //   t->state = ZOMBIE;
+  //   release(&t->lock);
+  // }
   //TODO: Do we need this?
   acquire(&myThread()->lock);
   release(&wait_lock);
   // Jump into the scheduler, never to return.
+  // printf("DEBUG ---- thread  %d finish to exit\n", myThread()->tid);
   sched();
   panic("zombie exit");
 }
@@ -683,7 +694,7 @@ void scheduler(void)
 
           if (t->state == RUNNABLE)
           {
-            // printf("%d:\tfound thread to run\n",cpuid());
+            // printf("\nDEBUG ----  %d:\tfound thread %d to run\n",cpuid(), t->tid);
 
             t->state = RUNNING;
             c->currThread = t;
@@ -691,7 +702,7 @@ void scheduler(void)
             c->currThread = 0;
           }
           // printf("DEBUG ---- swtch done\n");
-          // printf("DEBUG ---- CPU %d release thread num %d of proc %d\n", cpuid(), t->myNum, p->pid);
+          // printf("DEBUG ---- %d:\trelease thread %d of proc %d\n", cpuid(), t->tid, p->pid);
           release(&t->lock);
         }
         // Process is done running for now.
@@ -793,6 +804,9 @@ void sleep(void *chan, struct spinlock *lk)
   //changed all function from proc (p) to thread (t).
   struct thread *t = myThread();
 
+  // printf("DEBUG ---- proc %s %d sleeping on chan %p\n", p->name, p->pid, chan);
+  // printf("DEBUG ---- thread %d of %s sleeping on chan %p\n", t->tid, t->parent->name, chan);
+  // printf("\nDEBUG ---- WTF channel???\n\tthread*? tid: %d\n\tproc*? pid: %d name: %s\n\n", ((struct thread *)chan)->tid, ((struct proc *)chan)->pid, ((struct proc *)chan)->name);
   // Must acquire p->lock in order to
   // change p->state and then call sched.
   // Once we hold p->lock, we can be
@@ -844,25 +858,24 @@ void wakeup(void *chan)
 {
   struct proc *p;
   struct thread *t;
-
+  // printf("DEBUG ---- Trying to wake up chan %p\n", chan);
   for (p = proc; p < &proc[NPROC]; p++)
   {
-    acquire(&p->lock);
-    // or (int i = 0; i < NTHREAD; i++)
     for (t = p->threads; t < &p->threads[NTHREAD]; t++)
     {
-      //TODO: Cehck if right
-      if (t != myThread())
+      //TODO: Check if right
+      // if (t != myThread())
+      // {
+      //   acquire(&t->lock);
+      if (t->state == SLEEPING && t->chan == chan)
       {
-        acquire(&t->lock);
-        if (t->state == SLEEPING && t->chan == chan)
-        {
-          t->state = RUNNABLE;
-        }
-        release(&t->lock);
+        t->state = RUNNABLE;
+        // printf("DEBUG ---- thread %d woke up\n", t->tid);
       }
+      // release(&t->lock);
+      // }
     }
-    release(&p->lock);
+    // release(&p->lock);
   }
 }
 
