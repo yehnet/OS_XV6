@@ -567,12 +567,14 @@ void exit(int status)
   reparent(p);
 
   // Parent might be sleeping in wait().
-
+  //TODO: Should we wake up all the threads or only the first?
   for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
   {
     // printf("DEBUG ---- Trying to wake up proc on chan %p %d\n", (void *)wt, p->parent->pid);
     wakeup(wt);
   }
+
+  // wakeup(p->parent->threads);
   // wakeup(p->parent);
 
   acquire(&p->lock);
