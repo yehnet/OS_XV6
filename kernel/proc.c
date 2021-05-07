@@ -332,6 +332,7 @@ freeproc(struct proc *p)
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
+  p->tparent = 0;
   p->name[0] = 0;
   p->killed = 0;
   p->xstate = 0;
@@ -459,6 +460,7 @@ int fork(void)
   {
     return -1;
   }
+  np->tparent = t;
   //FIXME: the right way to assign thread* to thread ?
   // np->threads[0] = *allocThread(np);
   // Allocate thread.
@@ -540,7 +542,7 @@ void exit(int status)
 
   struct proc *p = myproc();
   struct thread *t = myThread();
-  struct thread *wt;
+  // struct thread *wt;
 
   if (p == initproc)
     panic("init exiting");
@@ -568,13 +570,13 @@ void exit(int status)
 
   // Parent might be sleeping in wait().
   //TODO: Should we wake up all the threads or only the first?
-  for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
-  {
-    // printf("DEBUG ---- Trying to wake up proc on chan %p %d\n", (void *)wt, p->parent->pid);
-    wakeup(wt);
-  }
+  // for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
+  // {
+  //   // printf("DEBUG ---- Trying to wake up proc on chan %p %d\n", (void *)wt, p->parent->pid);
+  //   wakeup(wt);
+  // }
 
-  // wakeup(p->parent->threads);
+  wakeup(p->tparent);
   // wakeup(p->parent);
 
   acquire(&p->lock);

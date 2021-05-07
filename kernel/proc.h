@@ -115,6 +115,7 @@ struct proc
 
   // proc_tree_lock must be held when using this:
   struct proc *parent; // Parent process
+  struct thread *tparent; //Parent thread
 
   // these are private to the process, so p->lock need not be held.
   //Ass2 - Task3.1 , moved to thread
