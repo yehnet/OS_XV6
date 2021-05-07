@@ -17,5 +17,5 @@ int
 main(int argc, char *argv[])
 {
     fprintf(2,"Hello World\n");
-    return 0;
+    exit(0);
 }
