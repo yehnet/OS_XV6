@@ -118,6 +118,14 @@ int             kthread_create (void (*start_func)(), void *stack) ;
 int             kthread_id();
 void            kthread_exit(int status);
 int             kthread_join(int thread_id, int* status);
+//Ass2 - Task4
+int             bsem_alloc(void);
+void            bsem_free(int descriptor);
+void            bsem_down(int descriptor);
+void            bsem_up(int descriptor);
+
+
+
 
 // swtch.S
 void            swtch(struct context*, struct context*);

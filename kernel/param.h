@@ -12,6 +12,7 @@
 #define FSSIZE       1000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define MAX_STACK_SIZE 4000 // user stack for thread 
+#define MAX_BSEM     128    //maximum number of binary semaphores
 
 //Ass2 Task2
 //Handlers

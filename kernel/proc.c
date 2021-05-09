@@ -1003,7 +1003,7 @@ int kthread_create(void (*start_func)(), void *stack)
 
   if (newThread == 0)
     return -1;
-  
+
   // acquire(&newThread->lock);
   // newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
   memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe));
@@ -1068,6 +1068,7 @@ getThread(struct proc *p, int target_id)
 }
 
 int kthread_join(int thread_id, int *status)
+
 {
   //TODO: Implement
   // struct thread *t = myThread();
@@ -1094,7 +1095,27 @@ int kthread_join(int thread_id, int *status)
   release(&wait_lock);
   return -1; //what can cause an error?
 }
-
+//Ass2 - Task4
+int bsem_alloc(void)
+{
+  //TODO: implement
+  return 0;
+};
+void bsem_free(int descriptor)
+{
+  //TODO: implement
+  return;
+}
+void bsem_down(int descriptor)
+{
+  //TODO: implement
+  return;
+}
+void bsem_up(int descriptor)
+{
+  //TODO: implement
+  return;
+}
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.

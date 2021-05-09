@@ -176,3 +176,37 @@ sys_kthread_join(void)
     return -1;
   return kthread_join(thread_id, status);
 }
+
+//Ass2 - Task4
+uint64
+sys_bsem_alloc(void)
+{
+  return bsem_alloc();
+}
+uint64
+sys_bsem_free(void)
+{
+  int desc;
+  if (argint(0, &desc) < 0)
+    return -1;
+  bsem_free(desc);
+  return 0;
+}
+uint64
+sys_bsem_down(void)
+{
+  int desc;
+  if (argint(0, &desc) < 0)
+    return -1;
+  bsem_down(desc);
+  return 0;
+}
+uint64
+sys_bsem_up(int descriptor)
+{
+  int desc;
+  if (argint(0, &desc) < 0)
+    return -1;
+  bsem_up(desc);
+  return 0;
+}
