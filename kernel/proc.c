@@ -308,6 +308,7 @@ found:
   //Question: where the release is happenning?
   return p;
 }
+
 static void
 freeThread(struct thread *t)
 {
@@ -329,6 +330,7 @@ freeThread(struct thread *t)
   t->parent = 0;
   t->xstate = 0;
 }
+
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
@@ -858,26 +860,6 @@ void sleep(void *chan, struct spinlock *lk)
   acquire(lk);
 }
 
-// Wake up all processes sleeping on chan.
-// Must be called without any p->lock.
-// void wakeup(void *chan)
-// {
-//   struct proc *p;
-
-//   for (p = proc; p < &proc[NPROC]; p++)
-//   {
-//     if (p != myproc())
-//     {
-//       acquire(&p->lock);
-//       if (p->state == SLEEPING && p->chan == chan)
-//       {
-//         p->state = RUNNABLE;
-//       }
-//       release(&p->lock);
-//     }
-//   }
-// }
-
 void wakeup(void *chan)
 {
   struct proc *p;
@@ -1183,6 +1165,7 @@ found:
   //TODO: implement
   return;
 }
+
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.
