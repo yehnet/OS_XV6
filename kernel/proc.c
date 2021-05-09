@@ -598,9 +598,9 @@ void exit(int status)
 
   wakeup(p->tparent);
   // wakeup(p->parent);
-  printf("DEBUG ---- exiting1 \n");
+  // printf("DEBUG ---- exiting1 \n");
   acquire(&p->lock);
-  printf("DEBUG ---- exiting2 \n");
+  // printf("DEBUG ---- exiting2 \n");
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -785,9 +785,9 @@ void yield(void)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
-  printf("DEBUG ---- yielding1\n");
+  // printf("DEBUG ---- yielding1\n");
   acquire(&p->lock);
-  printf("DEBUG ---- yielding2\n");
+  // printf("DEBUG ---- yielding2\n");
   p->state = RUNNABLE;
   acquire(&t->lock);
   t->state = RUNNABLE;
@@ -973,7 +973,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
   }
   if (oldact != 0)
   {
-    return copyout(p->pagetable, (uint64)oldact, (char *)temp, sizeof(struct sigaction));
+    return copyout(p->pagetable, (uint64)oldact, (char *)&temp, sizeof(struct sigaction *));
   }
   return 0;
 }
@@ -1091,7 +1091,7 @@ int kthread_join(int thread_id, int *status)
       *status = targett->xstate;
       return 0;
     }
-    printf("DEBUG ----- join -  sleeping on wait lock");
+    // printf("DEBUG ----- join -  sleeping on wait lock");
     sleep(targett, &wait_lock); // is legal for threads too ?
   }
 
