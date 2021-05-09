@@ -6,18 +6,22 @@
 #include "proc.h"
 #include "defs.h"
 #include "sigaction.h"
+#include "bsem.h"
 
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
 struct proc *initproc;
+struct bsem bsem[MAX_BSEM];
 
 int nextpid = 1;
 int nexttid = 100;
+int nextsid = 1;
 
 struct spinlock pid_lock;
 struct spinlock tid_lock;
+struct spinlock sid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
@@ -58,6 +62,7 @@ void procinit(void)
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   initlock(&tid_lock, "nexttid");
+  initlock(&sid_lock, "nextsid");
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -139,6 +144,15 @@ int alloctid()
   return tid;
 }
 
+int allocsid()
+{
+  // printf("DEBUG--------------allocid acquire \n");
+  acquire(&sid_lock);
+  int sid = nextsid;
+  nextsid++;
+  release(&sid_lock);
+  return sid;
+}
 //@proc p as the thread process
 //@tnum as thread number in the process thread array
 static struct thread *
@@ -1098,21 +1112,67 @@ int kthread_join(int thread_id, int *status)
 //Ass2 - Task4
 int bsem_alloc(void)
 {
-  //TODO: implement
-  return 0;
+  struct bsem *bs;
+  for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
+  {
+    if (bs->state == DEALLOC)
+      goto found;
+  }
+  return -1;
+
+found:
+  bs->sid = allocsid();
+  bs->state = DEALLOC;
+  bs->lock = UNLOCKED;
+  return bs->sid;
 };
+
 void bsem_free(int descriptor)
 {
   //TODO: implement
+  struct bsem *bs;
+  for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
+  {
+    if (bs->sid == descriptor)
+      goto found;
+  }
+  return;
+found:
+  if (bs->state == ALLOC && bs->lock == UNLOCKED)
+  {
+    bs->sid = 0;
+    bs->state = DEALLOC; //TODO: Need to make sure that there are no threads blocked because of it
+    bs->lock = UNLOCKED;
+  }
   return;
 }
+
 void bsem_down(int descriptor)
 {
+
+  struct bsem *bs;
+  for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
+  {
+    if (bs->sid == descriptor)
+      goto found;
+  }
+  return;
+found:
   //TODO: implement
+  //Need to block the current thread until it is unlocked
   return;
 }
+
 void bsem_up(int descriptor)
 {
+  struct bsem *bs;
+  for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
+  {
+    if (bs->sid == descriptor)
+      goto found;
+  }
+  return;
+found:
   //TODO: implement
   return;
 }
