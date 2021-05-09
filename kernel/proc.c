@@ -992,8 +992,10 @@ void sigret()
 }
 
 //Ass2 - Task 3.2
+//TODO: add explanations
 int kthread_create(void (*start_func)(), void *stack)
 {
+  printf("DEBUG ---- got to kthread_create\n");
   //TODO: Implement
   struct proc *p = myproc();
   struct thread *currThread = myThread();
@@ -1001,27 +1003,23 @@ int kthread_create(void (*start_func)(), void *stack)
 
   if (newThread == 0)
     return -1;
-
-  acquire(&newThread->lock);
+  
+  // acquire(&newThread->lock);
   // newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
   memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe));
   //or *(newThread->trapframe) = *(currThread->trapframe);
   newThread->state = RUNNABLE;
-  newThread->trapframe->epc = (uint64)&start_func;
+  newThread->trapframe->epc = (uint64)start_func;
   //allocate a user stack with size MAX_STACK_SIZE
   newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE - 16; // should be minus??
-  newThread->tid = alloctid();
 
   release(&newThread->lock);
-
-  if (newThread->tid == -1)
-    return -1;
-
   return newThread->tid;
 }
 
 int kthread_id()
 {
+  //FIXME: what can cause an error?
   struct thread *t = myThread();
   return t->tid;
 }
@@ -1029,15 +1027,21 @@ int kthread_id()
 void kthread_exit(int status)
 {
   //TODO: Implement
+  struct proc *p = myproc();
   struct thread *t = myThread();
 
   //last thread of the first proc
-  // if(t == initThread)
-  //   panic("init exiting");
+  // if (p == initproc && p->tCounter == 1)
+
+  if (p == initproc)
+    panic("init exiting");
 
   // last thread of the proc
-  // if (isLastThread(myProc()))
-  //   exit(status);
+  // if (p->tCounter == 1)
+  // {
+  // exit(status);
+  // return;
+  // }
 
   // acquire(&t->lock);
   t->xstate = status;
@@ -1055,7 +1059,6 @@ struct thread *
 getThread(struct proc *p, int target_id)
 {
   struct thread *t;
-  // for (int i = 0; i < NTHREAD; i++)
   for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
     if (t->tid == target_id)
@@ -1075,28 +1078,21 @@ int kthread_join(int thread_id, int *status)
   if (targett == 0)
     return -1;
 
-  //if the target thread already terminated , no point on waiting
-  if (targett->state == ZOMBIE)
+  acquire(&wait_lock);
+  for (;;)
   {
-    *status = targett->xstate;
-    return 0;
-  }
-  else
-  {
-    acquire(&wait_lock);
-    for (;;)
+    if (targett->state == ZOMBIE)
     {
-      if (targett->state == ZOMBIE)
-      {
-        release(&wait_lock);
-        *status = targett->xstate;
-        return 0;
-      }
-
-      sleep(targett, &wait_lock); // is legal for threads too ?
+      //FIXME : should we move the value to user through another way? (like copyout)
+      release(&wait_lock);
+      *status = targett->xstate;
+      return 0;
     }
+    sleep(targett, &wait_lock); // is legal for threads too ?
   }
-  return -1; //what can cause error?
+
+  release(&wait_lock);
+  return -1; //what can cause an error?
 }
 
 // Copy to either a user address, or kernel address,

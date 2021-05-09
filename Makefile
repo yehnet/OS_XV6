@@ -135,6 +135,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_ourTest\
+	$U/_othersTests\
 	# $U/_usertests_ass2\
 
 fs.img: mkfs/mkfs README $(UPROGS)
