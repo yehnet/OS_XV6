@@ -518,10 +518,12 @@ int fork(void)
   release(&nt->lock);
   release(&np->lock);
 
+  // printf("DEBUG -----fork - acquire wait_lock \n");
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
 
+  // printf("DEBUG ----- fork - acquire proc %d lock \n", np->pid);
   acquire(&np->lock);
   np->state = RUNNABLE;
   // np->threads[0].state = RUNNABLE; //Ass2 - Task3
@@ -592,8 +594,9 @@ void exit(int status)
 
   wakeup(p->tparent);
   // wakeup(p->parent);
-
+  printf("DEBUG ---- exiting1 \n");
   acquire(&p->lock);
+  printf("DEBUG ---- exiting2 \n");
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -638,7 +641,6 @@ int wait(uint64 addr)
       {
         // make sure the child isn't still in exit() or swtch().
         acquire(&np->lock);
-
         havekids = 1;
         if (np->state == ZOMBIE)
         {
@@ -689,7 +691,7 @@ void scheduler(void)
   // uint64 it = 0;
   for (;;)
   {
-    // printf("DEBUG ---- scheduler iteration %d\n", it++);
+    // printf("DEBUG ---- scheduler iteration\n");
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     for (p = proc; p < &proc[NPROC]; p++)
@@ -779,16 +781,20 @@ void yield(void)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
+  printf("DEBUG ---- yielding1\n");
   acquire(&p->lock);
+  printf("DEBUG ---- yielding2\n");
   p->state = RUNNABLE;
   acquire(&t->lock);
   t->state = RUNNABLE;
-  // printf("DEBUG ***** yield sched,\t proc %d \t thread %d\n", p->pid, t->tid);
 
+
+  // printf("DEBUG ***** yield sched,\t proc %d \t thread %d\n", p->pid, t->tid);
   sched();
   release(&t->lock);
   release(&p->lock);
 }
+
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void)
@@ -831,7 +837,6 @@ void sleep(void *chan, struct spinlock *lk)
   // guaranteed that we won't miss any wakeup
   // (wakeup locks p->lock),
   // so it's okay to release lk.
-
   acquire(&p->lock); //DOC: sleeplock1
   acquire(&t->lock); //DOC: sleeplock1
   release(lk);
@@ -966,6 +971,7 @@ uint sigprocmask(uint sigmask)
   release(&p->lock);
   return oldMask;
 }
+
 //Ass2 - Task2
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
@@ -1009,24 +1015,24 @@ void sigret()
 //TODO: add explanations
 int kthread_create(void (*start_func)(), void *stack)
 {
-  printf("DEBUG ---- got to kthread_create\n");
   //TODO: Implement
   struct proc *p = myproc();
   struct thread *currThread = myThread();
   struct thread *newThread = allocThread(p);
-
+  // printf("DEBUG --- sooo the creator is %d and the createee is %d \n", currThread->tid, newThread->tid);
   if (newThread == 0)
     return -1;
 
   // acquire(&newThread->lock);
   // newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
-  memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe));
-  //or *(newThread->trapframe) = *(currThread->trapframe);
+  // memmove(newThread->trapframe, currThread->trapframe, sizeof(struct trapframe));
+  *(newThread->trapframe) = *(currThread->trapframe);
   newThread->state = RUNNABLE;
   newThread->trapframe->epc = (uint64)start_func;
   //allocate a user stack with size MAX_STACK_SIZE
   newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE - 16; // should be minus??
 
+  // printf("DEBUG ----- create - release proc %d lock \n", p->pid);
   release(&newThread->lock);
   return newThread->tid;
 }
@@ -1084,7 +1090,6 @@ getThread(struct proc *p, int target_id)
 int kthread_join(int thread_id, int *status)
 
 {
-  //TODO: Implement
   // struct thread *t = myThread();
   struct proc *p = myproc();
   struct thread *targett = getThread(p, thread_id);
@@ -1103,6 +1108,7 @@ int kthread_join(int thread_id, int *status)
       *status = targett->xstate;
       return 0;
     }
+    printf("DEBUG ----- join -  sleeping on wait lock");
     sleep(targett, &wait_lock); // is legal for threads too ?
   }
 
