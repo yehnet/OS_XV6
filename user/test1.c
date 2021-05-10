@@ -403,13 +403,13 @@ void sigkill_with_several_threads(){
 int
 main(int argc, char *argv[])
 {
-    printf("hello world\n");
-    //signal_test();
-    //simple_create();
-    //thread_test("\ntest_threads\n");
-    //simple_exit();
-    //simple_join();
-    //simple_sleep();
+    printf("------ Test1 ------\n");
+    signal_test();
+    // simple_create();
+    // thread_test("\ntest_threads\n");
+    // simple_exit();
+    // simple_join();
+    // simple_sleep();
     //exit_last_only_thread();
     //exit_last();
     //exit_myself_not_last();
@@ -425,7 +425,7 @@ main(int argc, char *argv[])
     //thread_available_again_can_be_reused(); //better delete printings from simple_create before running 
     //signal_with_several_threads();
     //sigaction_with_several_threads();
-    sigkill_with_several_threads();
+    // sigkill_with_several_threads();
     printf("passed\n");
     exit(0);
 }

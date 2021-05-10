@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 
         kthread_create(runner3, userStack);
         // kthread_join(secPid, &status);
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 10; i++)
         {
             printf("%d: I need YOU BABY\n ", kthread_id());
         }
