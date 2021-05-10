@@ -142,4 +142,5 @@ struct proc
 
   //Ass2 - Task3
   struct thread threads[NTHREAD];
+  int plocks[8];
 };

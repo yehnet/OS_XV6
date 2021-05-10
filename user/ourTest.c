@@ -27,7 +27,7 @@ void runner3()
 {
     for (int i = 0; i < 5; i++)
         printf(": I LOVE YOU BABY\n", kthread_id());
-    exit(0);
+    kthread_exit(0);
 }
 int main(int argc, char *argv[])
 {
@@ -41,13 +41,13 @@ int main(int argc, char *argv[])
     if (pid == 0)
     {
         //first function gets address 0 
-        printf("function runner1 gets address >  %p\n", runner1);
-        printf("create - gets runner pointer %p\n", runner2);
-        printf("create - gets runner pointer %p\n", runner3);
+        // printf("function runner1 gets address >  %p\n", runner1);
+        // printf("create - gets runner pointer %p\n", runner2);
+        // printf("create - gets runner pointer %p\n", runner3);
 
         kthread_create(runner3, userStack);
         // kthread_join(secPid, &status);
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 5; i++)
         {
             printf("%d: I need YOU BABY\n ", kthread_id());
         }
