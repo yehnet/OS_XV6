@@ -5,7 +5,8 @@
 
 struct bsem
 {
+    struct spinlock lock;
     int sid;
-    int lock;
+    int isLocked;
     int state;
 };
