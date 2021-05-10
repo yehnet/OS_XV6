@@ -58,7 +58,7 @@ void print_locks_position(int procLocks[], int threadLocks[])
   printf("\t\t%d ", threadLocks[4]);   //tyield
   printf("\t%d ", threadLocks[5]);     //tsleep
   printf("\t%d ", threadLocks[6]);     //tkill
-  printf("%d ", threadLocks[7]);//kthread_exit
+  printf("\t%d ", threadLocks[7]);//kthread_exit
 
   printf(" \n");
 }
@@ -249,6 +249,7 @@ found:
   // t->trapframe = (struct trapframe *) ((uint64)(p->start) + (uint64)((t->myNum)*sizeof(struct trapframe)));
   // printf("DEBUG ******* %p \t in proc %d\n", p->start, p->pid);
   // t->trapframe->sp = t->kstack + PGSIZE;
+  
   // Set up new context to start executing at forkret,
   // which returns to user space.
   if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
@@ -1101,8 +1102,10 @@ int kthread_create(void (*start_func)(), void *stack)
   struct thread *currThread = myThread();
   struct thread *newThread = allocThread(p);
   // printf("DEBUG --- sooo the creator is %d and the createee is %d \n", currThread->tid, newThread->tid);
-  if (newThread == 0)
+  if (newThread == 0){
+    release(&newThread->lock);
     return -1;
+  }
 
   // acquire(&newThread->lock);
   // newThread->kstack = (uint64)kalloc(); //TODO: Do we need this here? https://moodle2.bgu.ac.il/moodle/mod/forum/discuss.php?d=495788
