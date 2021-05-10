@@ -187,6 +187,7 @@ found:
   t->parent = p;
   t->killed = 0;
   t->chan = 0;
+  t->bsem_id = 0;
 
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
@@ -329,6 +330,7 @@ freeThread(struct thread *t)
   t->killed = 0;
   t->parent = 0;
   t->xstate = 0;
+  t->bsem_id = 0;
 }
 
 // free a proc structure and the data hanging from it,
@@ -598,7 +600,7 @@ void exit(int status)
 
   wakeup(p->tparent);
   // wakeup(p->parent);
-  printf("DEBUG ---- exiting1 - thread: %d \n",t->tid);
+  printf("DEBUG ---- exiting1 - thread: %d \n", t->tid);
   acquire(&p->lock);
   printf("DEBUG ---- exiting2 \n");
 
@@ -786,7 +788,7 @@ void yield(void)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
-  printf("DEBUG ---- yielding1 - thread: %d \n",t->tid);
+  printf("DEBUG ---- yielding1 - thread: %d \n", t->tid);
   acquire(&p->lock);
   printf("DEBUG ---- yielding2\n");
   p->state = RUNNABLE;
@@ -1141,6 +1143,7 @@ void bsem_down(int descriptor)
 {
 
   struct bsem *bs;
+  struct thread *t = myThread();
   for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
   {
     if (bs->sid == descriptor)
@@ -1148,7 +1151,15 @@ void bsem_down(int descriptor)
   }
   return;
 found:
-  //TODO: implement
+  //Check if bsem allocated
+  if (bs->state == ALLOC)
+  {
+    if (bs->lock == LOCKED)
+    {
+      t->bsem_id = bs->sid;
+    }
+  }
+
   //Need to block the current thread until it is unlocked
   return;
 }

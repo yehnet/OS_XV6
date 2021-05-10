@@ -14,6 +14,8 @@ struct thread
    // proc_tree_lock must be held when using this:
     struct proc *parent;    // Parent process - ShOuLD WE NEED THIS?
     struct context context; // swtch() here to run process
+    //Ass2 - Task4
+    int bsem_id;
 };
 
 
