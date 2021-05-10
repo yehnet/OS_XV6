@@ -606,19 +606,20 @@ void exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-  t->state = ZOMBIE;
+  // t->state = ZOMBIE;
 
   // for (int i = 0; i < NTHREAD; i++)
-  // for (t = p->threads; t < &p->threads[NTHREAD]; t++)
-  // {
-  //   //FIXME: how do we kill all threads
-  //   // p->currThreads[i].killed = 1;
-  //   acquire(&t->lock);
-  //   t->state = ZOMBIE;
-  //   release(&t->lock);
-  // }
+  struct thread *nt;
+  for (nt = p->threads; nt < &p->threads[NTHREAD]; nt++)
+  {
+    //FIXME: how do we kill all threads
+    // p->currThreads[i].killed = 1;
+    acquire(&t->lock);
+    t->state = ZOMBIE;
+    release(&t->lock);
+  }
   //TODO: Do we need this?
-  acquire(&myThread()->lock);
+  acquire(&t->lock);
   release(&wait_lock);
   // Jump into the scheduler, never to return.
   // printf("DEBUG ---- thread  %d finish to exit\n", myThread()->tid);
