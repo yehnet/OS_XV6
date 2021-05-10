@@ -51,14 +51,14 @@ void print_locks_position(int procLocks[], int threadLocks[])
 
   printf("\n");
 
-  printf("\t\t\t%d ", threadLocks[7]); //talloc
+  printf("\t\t\t%d ", threadLocks[0]); //talloc
   printf("\t%d", threadLocks[1]);      //texit
   printf("-%d", threadLocks[2]);       //texit
   printf("\t%d ", threadLocks[3]);     //tscheduler
   printf("\t\t%d ", threadLocks[4]);   //tyield
   printf("\t%d ", threadLocks[5]);     //tsleep
   printf("\t%d ", threadLocks[6]);     //tkill
-  // printf("%d ", threadLocks[i]);
+  printf("%d ", threadLocks[7]);//kthread_exit
 
   printf(" \n");
 }
@@ -194,7 +194,7 @@ allocThread(struct proc *p)
   {
     // printf("DEBUG--------------allocthread acquire \n");
     acquire(&t->lock);
-    t->tlocks[7] = 1;
+    t->tlocks[0] += 1;
     if (t->state == UNUSED)
     {
       t->myNum = i;
@@ -204,7 +204,9 @@ allocThread(struct proc *p)
     else if (t->state == ZOMBIE)
     {
       freeThread(t);
+      t->tlocks[0]-=1;
       release(&t->lock);
+
       i++;
     }
     i++;
@@ -231,6 +233,7 @@ found:
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
     freeThread(t);
+    t->tlocks[7] = 99;
     release(&t->lock);
     return 0;
   }
@@ -251,6 +254,7 @@ found:
   if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
   {
     freeThread(t);
+    t->tlocks[0] = 99;
     release(&t->lock);
     return 0;
   }
@@ -487,6 +491,7 @@ void userinit(void)
   t->state = RUNNABLE;
   p->state = RUNNABLE;
 
+  t->tlocks[0]-=1;
   release(&t->lock);
   release(&p->lock);
 }
@@ -614,6 +619,7 @@ void exit(int status)
   struct proc *p = myproc();
   struct thread *t = myThread();
   // struct thread *wt;
+  print_locks_position(p->plocks, t->tlocks);
 
   if (p == initproc)
     panic("init exiting");
@@ -665,14 +671,14 @@ void exit(int status)
     //FIXME: how do we kill all threads
     // p->currThreads[i].killed = 1;
     acquire(&t->lock);
-    t->tlocks[1] = 1;
+    t->tlocks[1] += 1;
     t->state = ZOMBIE;
-    t->tlocks[1] = 0;
+    t->tlocks[1] -= 1;
     release(&t->lock);
   }
   //TODO: Do we need this?
   acquire(&t->lock);
-  t->tlocks[2] = 1;
+  t->tlocks[2] += 1;
   release(&wait_lock);
   // Jump into the scheduler, never to return.
   // printf("DEBUG ---- thread  %d finish to exit\n", myThread()->tid);
@@ -785,12 +791,12 @@ void scheduler(void)
             // printf("\nDEBUG ----  %d:\tfound thread %d to run\n", cpuid(), t->tid);
 
             acquire(&t->lock);
-            t->tlocks[3] = 1;
+            t->tlocks[3] += 1;
             t->state = RUNNING;
             c->currThread = t;
             swtch(&c->context, &t->context);
             c->currThread = 0;
-            t->tlocks[3] = 0;
+            t->tlocks[3] -= 1;
             release(&t->lock);
           }
           // printf("DEBUG ---- swtch done\n");
@@ -861,16 +867,16 @@ void yield(void)
   p->plocks[3] = 1;
   printf("DEBUG ---- yielding2 --- lets acquire thread %d\n", t->tid );
   p->state = RUNNABLE;
-  // print_locks_position(p->plocks, t->tlocks);
+  print_locks_position(p->plocks, t->tlocks);
   acquire(&t->lock);
-  t->tlocks[4] = 1;
+  t->tlocks[4] += 1;
   printf("DEBUG ---- yielding3\n");
   t->state = RUNNABLE;
 
   // printf("DEBUG ***** yield sched,\t proc %d \t thread %d\n", p->pid, t->tid);
   sched();
+  t->tlocks[4] -= 1;
   release(&t->lock);
-  t->tlocks[4] = 0;
   p->plocks[3] = 0;
   release(&p->lock);
 }
@@ -922,7 +928,7 @@ void sleep(void *chan, struct spinlock *lk)
   p->plocks[4] = 1;
   printf("DEBUG ----- sleeping1\n");
   acquire(&t->lock); //DOC: sleeplock1
-  t->tlocks[5] = 1;
+  t->tlocks[5] += 1;
 
   release(lk);
 
@@ -937,7 +943,7 @@ void sleep(void *chan, struct spinlock *lk)
   t->chan = 0;
 
   // Reacquire original lock.
-  t->tlocks[5] = 0;
+  t->tlocks[5] -= 1;
 
   release(&t->lock);
 
@@ -1004,10 +1010,10 @@ int kill(int pid, int signum)
           for (t = p->threads; t < &p->threads[NTHREAD]; t++)
           {
             acquire(&t->lock);
-            t->tlocks[6] = 1;
+            t->tlocks[6] += 1;
             t->killed = 1;
             t->state = RUNNABLE;
-            t->tlocks[6] = 0;
+            t->tlocks[6] -= 1;
             release(&t->lock);
           }
         }
@@ -1123,6 +1129,7 @@ void kthread_exit(int status)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
+  print_locks_position(p->plocks, t->tlocks);
 
   //last thread of the first proc
   if (p == initproc && p->tCounter == 1)
@@ -1140,6 +1147,7 @@ void kthread_exit(int status)
   // print_locks_position(p->plocks, t->tlocks);
   acquire(&p->lock);
   acquire(&t->lock);
+  t->tlocks[7] += 1;
   t->xstate = status;
   //t->killed = 1;
   t->state = ZOMBIE;
