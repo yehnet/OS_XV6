@@ -5,13 +5,14 @@ _*
 *.asm
 *.sym
 *.img
+.*.swp
 vectors.S
 bootblock
 entryother
 initcode
 initcode.out
 kernelmemfs
-mkfs
 kernel/kernel
+# mkfs/mkfs
 user/usys.S
 .gdbinit
