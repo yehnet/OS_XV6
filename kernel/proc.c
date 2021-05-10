@@ -314,8 +314,8 @@ freeThread(struct thread *t)
 {
   if (t->trapframe)
     kfree((void *)t->trapframe);
-  if (t->userTrapBackup)
-    kfree((void *)t->userTrapBackup);
+  // if (t->userTrapBackup)
+  //   kfree((void *)t->userTrapBackup);
   //Is it the right way to free kstack?
   if (t->myNum != 0)
     kfree((void *)t->kstack);
