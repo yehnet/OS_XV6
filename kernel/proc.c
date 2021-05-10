@@ -27,6 +27,8 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 static void freeThread(struct thread *t);
 
+void wakeup_bs(int bid);
+
 extern char trampoline[]; // trampoline.S
 
 // helps ensure that wakeups of wait()ing
@@ -600,9 +602,9 @@ void exit(int status)
 
   wakeup(p->tparent);
   // wakeup(p->parent);
-  printf("DEBUG ---- exiting1 - thread: %d \n", t->tid);
+  // printf("DEBUG ---- exiting1 - thread: %d \n", t->tid);
   acquire(&p->lock);
-  printf("DEBUG ---- exiting2 \n");
+  // printf("DEBUG ---- exiting2 \n");
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -760,6 +762,7 @@ void sched(void)
     panic("sched t->lock");
   if (mycpu()->noff != 2)
   {
+    printf("mycpu()->noff = %d\n", mycpu()->noff);
     panic("sched locks");
   }
   if (t->state == RUNNING)
@@ -788,9 +791,9 @@ void yield(void)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
-  printf("DEBUG ---- yielding1 - thread: %d \n", t->tid);
+  // printf("DEBUG ---- yielding1 - thread: %d \n", t->tid);
   acquire(&p->lock);
-  printf("DEBUG ---- yielding2\n");
+  // printf("DEBUG ---- yielding2\n");
   p->state = RUNNABLE;
   acquire(&t->lock);
   t->state = RUNNABLE;
@@ -1160,10 +1163,12 @@ found:
     {
       t->bsem_id = bs->sid;
       sleep(t, &bs->lock);
+      release(&bs->lock);
     }
     else
     {
       bs->isLocked = LOCKED;
+      t->bsem_id = 0;
       release(&bs->lock);
     }
   }
@@ -1177,6 +1182,7 @@ found:
 void bsem_up(int descriptor)
 {
   struct bsem *bs;
+  // struct thread *t = myThread();
   for (bs = bsem; bs < &bsem[MAX_BSEM]; bs++)
   {
     if (bs->sid == descriptor)
@@ -1184,7 +1190,34 @@ void bsem_up(int descriptor)
   }
   return;
 found:
-  //TODO: implement
+  acquire(&bs->lock);
+  //Check if bsem allocated
+  if (bs->state == ALLOC && bs->isLocked == LOCKED)
+  {
+    bs->isLocked = UNLOCKED;
+    wakeup_bs(bs->sid);
+  }
+
+  release(&bs->lock);
+  return;
+}
+
+void wakeup_bs(int bid)
+{
+  struct proc *p;
+  struct thread *t;
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    for (t = p->threads; t < &p->threads[NTHREAD]; t++)
+    {
+      if (t->bsem_id == bid)
+        goto found;
+    }
+  }
+  return;
+found:
+  wakeup(t);
   return;
 }
 
