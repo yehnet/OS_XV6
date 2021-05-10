@@ -598,9 +598,9 @@ void exit(int status)
 
   wakeup(p->tparent);
   // wakeup(p->parent);
-  // printf("DEBUG ---- exiting1 \n");
+  printf("DEBUG ---- exiting1 - thread: %d \n",t->tid);
   acquire(&p->lock);
-  // printf("DEBUG ---- exiting2 \n");
+  printf("DEBUG ---- exiting2 \n");
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -728,6 +728,7 @@ void scheduler(void)
           // printf("DEBUG ---- swtch done\n");
           // printf("DEBUG ---- %d:\trelease thread %d of proc %d\n", cpuid(), t->tid, p->pid);
           release(&t->lock);
+          break;
         }
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -785,9 +786,9 @@ void yield(void)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
-  // printf("DEBUG ---- yielding1\n");
+  printf("DEBUG ---- yielding1 - thread: %d \n",t->tid);
   acquire(&p->lock);
-  // printf("DEBUG ---- yielding2\n");
+  printf("DEBUG ---- yielding2\n");
   p->state = RUNNABLE;
   acquire(&t->lock);
   t->state = RUNNABLE;
