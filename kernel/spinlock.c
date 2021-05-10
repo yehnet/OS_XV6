@@ -22,6 +22,7 @@ void acquire(struct spinlock *lk)
   push_off(); // disable interrupts to avoid deadlock.
   if (holding(lk))
   {
+    printf("locking %s\n", lk->name);
     panic("acquire");
   }
 
@@ -45,8 +46,10 @@ void acquire(struct spinlock *lk)
 // Release the lock.
 void release(struct spinlock *lk)
 {
-  if (!holding(lk))
+  if (!holding(lk)){
+    printf("lock %s\n", lk->name);
     panic("release");
+  }
 
   lk->cpu = 0;
 

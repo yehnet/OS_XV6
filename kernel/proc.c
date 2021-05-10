@@ -42,22 +42,22 @@ struct spinlock wait_lock;
 void print_locks_position(int procLocks[], int threadLocks[])
 {
   printf("DEBUG ------Locks:\talloc\texit\tscheduler\tyield\tsleep\tkill\n");
-  printf("\t\t\t%d ", procLocks[0]);//alloc
-  printf("\t%d ", procLocks[1]);//exit
-  printf("\t%d ", procLocks[2]);//tscheduler
-  printf("\t\t%d ", procLocks[3]);//tyield
-  printf("\t%d ", procLocks[4]);//tsleep
-  printf("\t%d ", procLocks[5]);//tkill
+  printf("\t\t\t%d ", procLocks[0]); //alloc
+  printf("\t%d ", procLocks[1]);     //exit
+  printf("\t%d ", procLocks[2]);     //tscheduler
+  printf("\t\t%d ", procLocks[3]);   //tyield
+  printf("\t%d ", procLocks[4]);     //tsleep
+  printf("\t%d ", procLocks[5]);     //tkill
 
   printf("\n");
 
-  printf("\t\t\t%d ", threadLocks[7]);//talloc
-  printf("\t%d", threadLocks[1]);//texit
-  printf("-%d", threadLocks[2]);//texit
-  printf("\t%d ", threadLocks[3]);//tscheduler
-  printf("\t\t%d ", threadLocks[4]);//tyield
-  printf("\t%d ", threadLocks[5]);//tsleep
-  printf("\t%d ", threadLocks[6]);//tkill
+  printf("\t\t\t%d ", threadLocks[7]); //talloc
+  printf("\t%d", threadLocks[1]);      //texit
+  printf("-%d", threadLocks[2]);       //texit
+  printf("\t%d ", threadLocks[3]);     //tscheduler
+  printf("\t\t%d ", threadLocks[4]);   //tyield
+  printf("\t%d ", threadLocks[5]);     //tsleep
+  printf("\t%d ", threadLocks[6]);     //tkill
   // printf("%d ", threadLocks[i]);
 
   printf(" \n");
@@ -215,6 +215,7 @@ found:
   t->tid = alloctid();
   t->state = USED;
   t->parent = p;
+  t->parent->tCounter++;
   t->killed = 0;
   t->chan = 0;
   t->bsem_id = 0;
@@ -301,6 +302,7 @@ found:
   p->plocks[5] = 0;
   p->plocks[6] = 0;
   p->plocks[7] = 0;
+  p->tCounter = 0;
 
   // Allocate a trapframe page.
   if ((p->start = kalloc()) == 0)
@@ -359,6 +361,8 @@ found:
 static void
 freeThread(struct thread *t)
 {
+  if (t->state != UNUSED)
+    t->parent->tCounter--;
   if (t->trapframe)
     kfree((void *)t->trapframe);
   // if (t->userTrapBackup)
@@ -370,8 +374,6 @@ freeThread(struct thread *t)
   t->trapframe = 0;
   t->chan = 0;
   t->state = 0;
-  t->tid = 0;
-  t->state = UNUSED;
   t->myNum = 0;
   t->killed = 0;
   t->parent = 0;
@@ -403,6 +405,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->tCounter = 0;
 }
 
 // Create a user page table for a given process,
@@ -638,14 +641,14 @@ void exit(int status)
 
   // Parent might be sleeping in wait().
   //TODO: Should we wake up all the threads or only the first?
-  // for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
-  // {
+  // //for (wt = p->parent->threads; wt < &p->parent->threads[NTHREAD]; wt++)
+  // //{
   //   // printf("DEBUG ---- Trying to wake up proc on chan %p %d\n", (void *)wt, p->parent->pid);
-  //   wakeup(wt);
-  // }
+  // //  wakeup(wt);
+  // //}
 
   wakeup(p->tparent);
-  // wakeup(p->parent);
+  // //wakeup(p->parent);
   printf("DEBUG ---- exiting1 \n");
   acquire(&p->lock);
   p->plocks[1] = 1;
@@ -653,7 +656,7 @@ void exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-  // t->state = ZOMBIE;
+  // //t->state = ZOMBIE;
 
   // for (int i = 0; i < NTHREAD; i++)
   struct thread *nt;
@@ -760,12 +763,12 @@ void scheduler(void)
       p->plocks[2] = 1;
       // printf("DEBUG ---- CPU %d acquire proc %d\n", cpuid(), p->pid);
 
-      if (p->state == RUNNABLE || p->state == RUNNING)
+      if (p->state == RUNNABLE)
       {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
-        p->state = RUNNING;
+        // p->state = RUNNING;
         c->proc = p;
 
         for (t = p->threads; t < &p->threads[NTHREAD]; t++)
@@ -779,7 +782,8 @@ void scheduler(void)
 
           if (t->state == RUNNABLE)
           {
-            // printf("\nDEBUG ----  %d:\tfound thread %d to run\n",cpuid(), t->tid);
+            // printf("\nDEBUG ----  %d:\tfound thread %d to run\n", cpuid(), t->tid);
+
             acquire(&t->lock);
             t->tlocks[3] = 1;
             t->state = RUNNING;
@@ -852,14 +856,14 @@ void yield(void)
   struct proc *p = myproc();
   struct thread *t = myThread();
   printf("DEBUG ---- yielding1 \n");
+
   acquire(&p->lock);
   p->plocks[3] = 1;
-  printf("DEBUG ---- yielding2\n");
+  printf("DEBUG ---- yielding2 --- lets acquire thread %d\n", t->tid );
   p->state = RUNNABLE;
   // print_locks_position(p->plocks, t->tlocks);
   acquire(&t->lock);
   t->tlocks[4] = 1;
-
   printf("DEBUG ---- yielding3\n");
   t->state = RUNNABLE;
 
@@ -907,6 +911,7 @@ void sleep(void *chan, struct spinlock *lk)
   // printf("DEBUG ---- proc %s %d sleeping on chan %p\n", p->name, p->pid, chan);
   // printf("DEBUG ---- thread %d of %s sleeping on chan %p\n", t->tid, t->parent->name, chan);
   // printf("\nDEBUG ---- WTF channel???\n\tthread*? tid: %d\n\tproc*? pid: %d name: %s\n\n", ((struct thread *)chan)->tid, ((struct proc *)chan)->pid, ((struct proc *)chan)->name);
+  
   // Must acquire p->lock in order to
   // change p->state and then call sched.
   // Once we hold p->lock, we can be
@@ -915,6 +920,7 @@ void sleep(void *chan, struct spinlock *lk)
   // so it's okay to release lk.
   acquire(&p->lock); //DOC: sleeplock1
   p->plocks[4] = 1;
+  printf("DEBUG ----- sleeping1\n");
   acquire(&t->lock); //DOC: sleeplock1
   t->tlocks[5] = 1;
 
@@ -1115,27 +1121,36 @@ int kthread_id()
 
 void kthread_exit(int status)
 {
-  //TODO: Implement
   struct proc *p = myproc();
   struct thread *t = myThread();
 
   //last thread of the first proc
-  // if (p == initproc && p->tCounter == 1)
-
-  if (p == initproc)
+  if (p == initproc && p->tCounter == 1)
     panic("init exiting");
 
   // last thread of the proc
-  // if (p->tCounter == 1)
-  // {
-  // exit(status);
-  // return;
-  // }
+  if (p->tCounter == 1)
+  {
+    exit(status);
+    return;
+  }
+
+  printf("DEBUG ----- kthread-exit1\n");
+
   // print_locks_position(p->plocks, t->tlocks);
+  acquire(&p->lock);
   acquire(&t->lock);
   t->xstate = status;
   //t->killed = 1;
   t->state = ZOMBIE;
+  // struct thread *nt;
+  // for (nt = t->parent->threads; nt < &t->parent->threads[NTHREAD]; nt++)
+  // {
+  //   wakeup(nt);
+  // }
+  // printf("DEBUG ---- trying to wakeup %p\n", p->tparent);
+  wakeup(p->tparent);
+  printf("DEBUG ----- kthread-exit pre sched\n");
 
   sched();
   panic("not-last thread exit");

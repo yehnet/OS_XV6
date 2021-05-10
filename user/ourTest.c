@@ -14,19 +14,23 @@
 
 void runner1()
 {
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 1; i++)
         printf("%d: I LOVE YOU BABY\n", kthread_id());
 }
 void runner2()
 {
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 1; i++)
         printf(": I LOVE YOU BABY\n", kthread_id());
     exit(0);
 }
 void runner3()
 {
+    int temp = kthread_id(); 
+    
     for (int i = 0; i < 5; i++)
-        printf(": I LOVE YOU BABY\n", kthread_id());
+        printf(": I LOVE YOU BABY\n", temp);
+    printf("%d is done \n", temp);
+
     kthread_exit(0);
 }
 int main(int argc, char *argv[])
@@ -35,22 +39,25 @@ int main(int argc, char *argv[])
 
     int pid = fork();
     int status = 0;
+    int temp= 0;
     void *userStack = malloc(4000);
     // int secPid;
 
     if (pid == 0)
     {
-        //first function gets address 0 
+        //first function gets address 0
         // printf("function runner1 gets address >  %p\n", runner1);
         // printf("create - gets runner pointer %p\n", runner2);
         // printf("create - gets runner pointer %p\n", runner3);
 
         kthread_create(runner3, userStack);
         // kthread_join(secPid, &status);
+        temp = kthread_id();
         for (int i = 0; i < 5; i++)
         {
-            printf("%d: I need YOU BABY\n ", kthread_id());
+            printf("%d: I need YOU BABY\n ",temp);
         }
+        printf("%d is done \n", temp);
     }
     else if (pid == -1)
     {
@@ -61,6 +68,6 @@ int main(int argc, char *argv[])
         // printf("proc parent running\n");
         wait(&status);
     }
-
-    exit(0);
+    kthread_exit(0);
+    return 0;
 }
