@@ -40,22 +40,22 @@ struct spinlock wait_lock;
 void print_locks_position(int procLocks[], int threadLocks[])
 {
   printf("DEBUG ------Locks:\talloc\texit\tscheduler\tyield\tsleep\tkill\n");
-  printf("\t\t\t%d ", procLocks[0]);
-  printf("\t%d ", procLocks[1]);
-  printf("\t%d ", procLocks[2]);
-  printf("\t\t%d ", procLocks[3]);
-  printf("\t%d ", procLocks[4]);
-  printf("\t%d ", procLocks[5]);
+  printf("\t\t\t%d ", procLocks[0]);//alloc
+  printf("\t%d ", procLocks[1]);//exit
+  printf("\t%d ", procLocks[2]);//tscheduler
+  printf("\t\t%d ", procLocks[3]);//tyield
+  printf("\t%d ", procLocks[4]);//tsleep
+  printf("\t%d ", procLocks[5]);//tkill
 
   printf("\n");
 
-  printf("\t\t\t%d ", threadLocks[7]);
-  printf("\t%d", threadLocks[1]);
-  printf("-%d", threadLocks[2]);
-  printf("\t%d ", threadLocks[3]);
-  printf("\t\t%d ", threadLocks[4]);
-  printf("\t%d ", threadLocks[5]);
-  printf("\t%d ", threadLocks[6]);
+  printf("\t\t\t%d ", threadLocks[7]);//talloc
+  printf("\t%d", threadLocks[1]);//texit
+  printf("-%d", threadLocks[2]);//texit
+  printf("\t%d ", threadLocks[3]);//tscheduler
+  printf("\t\t%d ", threadLocks[4]);//tyield
+  printf("\t%d ", threadLocks[5]);//tsleep
+  printf("\t%d ", threadLocks[6]);//tkill
   // printf("%d ", threadLocks[i]);
 
   printf(" \n");
