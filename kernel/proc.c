@@ -1115,7 +1115,8 @@ int bsem_alloc(void)
 found:
   bs->sid = allocsid();
   bs->state = DEALLOC;
-  bs->lock = UNLOCKED;
+  bs->isLocked = UNLOCKED;
+  initlock(&bs->lock, "bsem");
   return bs->sid;
 };
 
@@ -1130,11 +1131,11 @@ void bsem_free(int descriptor)
   }
   return;
 found:
-  if (bs->state == ALLOC && bs->lock == UNLOCKED)
+  if (bs->state == ALLOC && bs->isLocked == UNLOCKED)
   {
     bs->sid = 0;
     bs->state = DEALLOC; //TODO: Need to make sure that there are no threads blocked because of it
-    bs->lock = UNLOCKED;
+    bs->isLocked = UNLOCKED;
   }
   return;
 }
@@ -1151,16 +1152,25 @@ void bsem_down(int descriptor)
   }
   return;
 found:
+  acquire(&bs->lock);
   //Check if bsem allocated
   if (bs->state == ALLOC)
   {
-    if (bs->lock == LOCKED)
+    if (bs->isLocked == LOCKED)
     {
       t->bsem_id = bs->sid;
+      sleep(t, &bs->lock);
+    }
+    else
+    {
+      bs->isLocked = LOCKED;
+      release(&bs->lock);
     }
   }
-
-  //Need to block the current thread until it is unlocked
+  else
+  {
+    release(&bs->lock);
+  }
   return;
 }
 
