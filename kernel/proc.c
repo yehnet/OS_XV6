@@ -180,13 +180,11 @@ int allocsid()
 static struct thread *
 allocThread(struct proc *p)
 {
-  //TODO
   struct thread *t;
   int i = 0;
   for (t = p->threads; t < &p->threads[NTHREAD]; t++)
   {
     acquire(&t->lock);
-    t->tlocks[0] += 1;
     if (t->state == UNUSED)
     {
       t->myNum = i;
@@ -196,7 +194,6 @@ allocThread(struct proc *p)
     else if (t->state == ZOMBIE)
     {
       freeThread(t);
-      t->tlocks[0] -= 1;
       release(&t->lock);
 
       i++;
@@ -213,19 +210,10 @@ found:
   t->killed = 0;
   t->chan = 0;
   t->bsem_id = 0;
-  t->tlocks[0] = 0;
-  t->tlocks[1] = 0;
-  t->tlocks[2] = 0;
-  t->tlocks[3] = 0;
-  t->tlocks[4] = 0;
-  t->tlocks[5] = 0;
-  t->tlocks[6] = 0;
-  t->tlocks[7] = 0;
 
   if ((t->kstack = (uint64)kalloc()) == 0)
   {
     freeThread(t);
-    t->tlocks[7] = 99;
     release(&t->lock);
     return 0;
   }
@@ -237,7 +225,6 @@ found:
   if ((t->userTrapBackup = (struct trapframe *)kalloc()) == 0)
   {
     freeThread(t);
-    t->tlocks[0] = 99;
     release(&t->lock);
     return 0;
   }
@@ -277,17 +264,8 @@ allocproc(void)
   return 0;
 
 found:
-  p->plocks[0] = 1;
   p->pid = allocpid();
   p->state = USED;
-  p->plocks[0] = 0;
-  p->plocks[1] = 0;
-  p->plocks[2] = 0;
-  p->plocks[3] = 0;
-  p->plocks[4] = 0;
-  p->plocks[5] = 0;
-  p->plocks[6] = 0;
-  p->plocks[7] = 0;
   p->tCounter = 0;
 
   // Allocate a trapframe page.
@@ -442,7 +420,6 @@ void userinit(void)
   t->state = RUNNABLE;
   p->state = RUNNABLE;
 
-  t->tlocks[0] -= 1;
   release(&t->lock);
   release(&p->lock);
 }
@@ -563,7 +540,6 @@ void exit(int status)
 
   struct proc *p = myproc();
   struct thread *t = myThread();
-  print_locks_position(p->plocks, t->tlocks);
 
   if (p == initproc)
     panic("init exiting");
@@ -592,7 +568,6 @@ void exit(int status)
   // Parent might be sleeping in wait().
   wakeup(p->tparent);
   acquire(&p->lock);
-  p->plocks[1] = 1;
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -602,14 +577,11 @@ void exit(int status)
   {
 
     acquire(&t->lock);
-    t->tlocks[1] += 1;
     t->state = ZOMBIE;
-    t->tlocks[1] -= 1;
     release(&t->lock);
   }
 
   acquire(&t->lock);
-  t->tlocks[2] += 1;
   release(&wait_lock);
   // Jump into the scheduler, never to return.
 
@@ -692,7 +664,6 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      p->plocks[2] = 1;
 
       if (p->state == RUNNABLE)
       {
@@ -706,12 +677,10 @@ void scheduler(void)
           if (t->state == RUNNABLE)
           {
             acquire(&t->lock);
-            t->tlocks[3] += 1;
             t->state = RUNNING;
             c->currThread = t;
             swtch(&c->context, &t->context);
             c->currThread = 0;
-            t->tlocks[3] -= 1;
             release(&t->lock);
           }
         }
@@ -719,7 +688,6 @@ void scheduler(void)
         // It should have changed its p->state before coming back.
         c->proc = 0;
       }
-      p->plocks[2] = 0;
       release(&p->lock);
     }
   }
@@ -763,17 +731,12 @@ void yield(void)
   struct thread *t = myThread();
 
   acquire(&p->lock);
-  p->plocks[3] = 1;
   p->state = RUNNABLE;
-  print_locks_position(p->plocks, t->tlocks);
   acquire(&t->lock);
-  t->tlocks[4] += 1;
   t->state = RUNNABLE;
 
   sched();
-  t->tlocks[4] -= 1;
   release(&t->lock);
-  p->plocks[3] = 0;
   release(&p->lock);
 }
 
@@ -814,9 +777,7 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
   acquire(&p->lock); //DOC: sleeplock1
-  p->plocks[4] = 1;
   acquire(&t->lock); //DOC: sleeplock1
-  t->tlocks[5] += 1;
 
   release(lk);
 
@@ -830,11 +791,9 @@ void sleep(void *chan, struct spinlock *lk)
   t->chan = 0;
 
   // Reacquire original lock.
-  t->tlocks[5] -= 1;
 
   release(&t->lock);
 
-  p->plocks[4] = 0;
   release(&p->lock);
   acquire(lk);
 }
@@ -871,7 +830,6 @@ int kill(int pid, int signum)
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
-    p->plocks[5] = 1;
     if (((p->pendingSig & 1 << signum) == 0) && (p->pid == pid) && (p->state != ZOMBIE))
     {
       switch (signum)
@@ -885,10 +843,8 @@ int kill(int pid, int signum)
           for (t = p->threads; t < &p->threads[NTHREAD]; t++)
           {
             acquire(&t->lock);
-            t->tlocks[6] += 1;
             t->killed = 1;
             t->state = RUNNABLE;
-            t->tlocks[6] -= 1;
             release(&t->lock);
           }
         }
@@ -908,7 +864,6 @@ int kill(int pid, int signum)
       release(&p->lock);
       return 0;
     }
-    p->plocks[5] = 0;
     release(&p->lock);
   }
   return -1;
@@ -919,7 +874,6 @@ uint sigprocmask(uint sigmask)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
-  p->plocks[6] = 1;
   uint oldMask = p->sigMask;
   p->sigMask = sigmask;
   release(&p->lock);
@@ -938,7 +892,6 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
   if (act != 0)
   {
     acquire(&p->lock);
-    p->plocks[7] = 1;
     p->sigHandlers[signum] = (struct sigaction *)act; //without casting makes an error becouse it's const
     release(&p->lock);
   }
@@ -994,7 +947,6 @@ void kthread_exit(int status)
 {
   struct proc *p = myproc();
   struct thread *t = myThread();
-  print_locks_position(p->plocks, t->tlocks);
 
   //last thread of the first proc
   if (p == initproc && p->tCounter == 1)
@@ -1009,7 +961,6 @@ void kthread_exit(int status)
 
   acquire(&p->lock);
   acquire(&t->lock);
-  t->tlocks[7] += 1;
   t->xstate = status;
   t->state = ZOMBIE;
   wakeup(p->tparent);

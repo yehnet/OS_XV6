@@ -142,6 +142,6 @@ struct proc
 
   //Ass2 - Task3
   struct thread threads[NTHREAD];
-  int plocks[8];
-  int tCounter;
+  int plocks[8];                  //for debugging, print lock acquire and release locations
+  int tCounter;                   //count how many threads is running in the curr process
 };

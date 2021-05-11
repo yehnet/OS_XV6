@@ -16,7 +16,7 @@ struct thread
     struct context context; // swtch() here to run process
     //Ass2 - Task4
     int bsem_id;
-    int tlocks[8];
+    int tlocks[8];          //for debugging, locks acquire and release locations
 };
 
 
