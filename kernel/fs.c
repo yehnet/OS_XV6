@@ -30,7 +30,6 @@ struct superblock sb;
 static void
 readsb(int dev, struct superblock *sb)
 {
-  // printf("DEBUG ---- Got to readsb\n");
   struct buf *bp;
   bp = bread(dev, 1);
   memmove(sb, bp->data, sizeof(*sb));
@@ -40,9 +39,7 @@ readsb(int dev, struct superblock *sb)
 // Init fs
 void fsinit(int dev)
 {
-  // printf("DEBUG ---- Got to fsinit\n");
   readsb(dev, &sb);
-  // printf("DEBUG ---- Pass readsb\n");
 
   if (sb.magic != FSMAGIC)
     panic("invalid file system");

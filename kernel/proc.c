@@ -41,7 +41,6 @@ struct spinlock wait_lock;
 //NOTICE: not implemented fully (like in signals.)
 void print_locks_position(int procLocks[], int threadLocks[])
 {
-  printf("DEBUG ------Locks:\talloc\texit\tscheduler\tyield\tsleep\tkill\n");
   printf("\t\t\t%d ", procLocks[0]); //alloc
   printf("\t%d ", procLocks[1]);     //exit
   printf("\t%d ", procLocks[2]);     //tscheduler
@@ -744,7 +743,6 @@ void sched(void)
     panic("sched t->lock");
   if (mycpu()->noff != 2)
   {
-    printf("mycpu()->noff = %d\n", mycpu()->noff);
     panic("sched locks");
   }
   if (t->state == RUNNING)
@@ -817,7 +815,6 @@ void sleep(void *chan, struct spinlock *lk)
   // so it's okay to release lk.
   acquire(&p->lock); //DOC: sleeplock1
   p->plocks[4] = 1;
-  printf("DEBUG ----- sleeping1\n");
   acquire(&t->lock); //DOC: sleeplock1
   t->tlocks[5] += 1;
 

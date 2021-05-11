@@ -41,7 +41,6 @@ void trapinithart(void)
 //
 void usertrap(void)
 {
-  // printf("DEBUG ---- Got to usertrap\n");
   int which_dev = 0;
 
   if ((r_sstatus() & SSTATUS_SPP) != 0)
@@ -104,7 +103,6 @@ void usertrap(void)
 //
 void usertrapret(void)
 {
-  // printf("DEBUG ---- Got to usertrapret\n");
   struct proc *p = myproc();
   // Ass2 - Task3
   struct thread *t = myThread();
@@ -165,10 +163,8 @@ void kerneltrap()
 
   if ((which_dev = devintr()) == 0)
   {
-    // printf("DEBUG ******* %p \t in proc %d\n",myThread()->trapframe, myproc()->pid);
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-    // printf("DEBUG ----- proc pid: %d\nthread tid: %d\n",myproc()->pid, myThread()->tid);
     panic("kerneltrap");
   }
 
