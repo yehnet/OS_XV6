@@ -136,6 +136,7 @@ struct proc
   uint32 sigMask;
   uint32 sigMaskBackup;
   void *sigHandlers[32];
+  uint32 sigHandlersMasks[32];
   //struct trapframe *userTrapBackup;
   //Ass2 - Task2.4 - flag that process is handling signal right now.
   int handlingSignal;

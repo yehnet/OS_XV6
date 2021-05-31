@@ -288,6 +288,7 @@ found:
   for (int i = 0; i < 32; i++)
   {
     p->sigHandlers[i] = (void *)SIG_DFL;
+    p->sigHandlersMasks[i] = 0;
   }
 
   p->pendingSig = 1 << SIGCONT;
@@ -483,7 +484,12 @@ int fork(void)
   //Ass2 - Task2
   //Inherit signal mask and signal handlers
   np->sigMask = p->sigMask;
-  *(np->sigHandlers) = *(p->sigHandlers);
+  // *(np->sigHandlers) = *(p->sigHandlers);
+  for (int i = 0; i < 32; i++)
+  {
+    np->sigHandlers[i] = p->sigHandlers[i];
+    np->sigHandlersMasks[i] = p->sigHandlersMasks[i];
+  }
 
   // Cause fork to return 0 in the child.
   nt->trapframe->a0 = 0; //Ass2 - Task3
@@ -888,16 +894,29 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
   }
   struct proc *p = myproc();
   struct sigaction *temp = p->sigHandlers[signum];
+  // if (oldact != 0)
+  // {
+  //    copyout(p->pagetable, (uint64)oldact->sa_handler, (char *)&p->sigHandlers[signum], sizeof(act->sa_handler));
+  //    copyout(p->pagetable, (uint64)oldact->sigmask, (char *)&p->sigHandlersMasks[signum], sizeof(uint32));
+  //    return 0;
+  // }
   if (act != 0)
   {
     acquire(&p->lock);
-    p->sigHandlers[signum] = (struct sigaction *)act; //without casting makes an error becouse it's const
+    // p->sigHandlers[signum] = (struct sigaction *)act; //without casting makes an error becouse it's const
+    // copyin(p->pagetable,(char*)&((struct sigaction*)p->sigHandlers[signum])->sa_handler,(uint64)act->sa_handler,sizeof(act->sa_handler));
+
+    copyin(p->pagetable, (char *)&p->sigHandlers[signum], (uint64)&act->sa_handler, sizeof(act->sa_handler));
+    copyin(p->pagetable, (char *)&p->sigHandlersMasks[signum], (uint64)&act->sigmask, sizeof(act->sigmask));
+
+    printf("DEBUG ---- act->sigmask: %p\n", ((p->sigHandlers[signum])));
     release(&p->lock);
   }
   if (oldact != 0)
   {
     return copyout(p->pagetable, (uint64)oldact, (char *)&temp, sizeof(struct sigaction *));
   }
+
   return 0;
 }
 

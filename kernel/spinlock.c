@@ -47,7 +47,7 @@ void acquire(struct spinlock *lk)
 void release(struct spinlock *lk)
 {
   if (!holding(lk)){
-    printf("lock %s\n", lk->name);
+    printf("DEBUG ----  pid: %d\n",myproc()->pid);
     panic("release");
   }
 

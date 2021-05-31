@@ -289,17 +289,25 @@ void handleSignals(struct proc *p)
       //---------- User space handlers ----------
       else
       {
+        printf("DEBUG ---- Got to user space\n");
         //TODO: maybe mmove or mmcpy?
         //Backup trapframe
         *(t->userTrapBackup) = *(t->trapframe);
+        // t->trapframe->sp -= sizeof(struct trapframe);
+        // t->userTrapBackup = (struct trapframe *)(t->trapframe->sp);
+        // copyout(p->pagetable, (uint64)t->trapframe, (char *)t->trapframe, sizeof(struct trapframe));
+        printf("DEBUG ---- backup trapframe done\n");
+
         //Bcakup signal mask
         p->sigMaskBackup = p->sigMask;
-        p->sigMask = ((struct sigaction *)(p->sigHandlers[i]))->sigmask;
+        p->sigMask = p->sigHandlersMasks[i];
+        printf("DEBUG ---- backup sigmask done\n");
 
         //Inject sigret to user stack
         uint64 sigretSize = ((uint64)&end_sigret - (uint64)&start_sigret);
         t->trapframe->sp -= sigretSize;
         copyout(p->pagetable, (uint64)t->trapframe->sp, (char *)&start_sigret, sigretSize);
+        printf("DEBUG ---- added sigret\n");
 
         //make the return address to be the sigret
         t->trapframe->ra = t->trapframe->sp;
@@ -312,11 +320,11 @@ void handleSignals(struct proc *p)
 
         //Discarding the signal
         p->pendingSig -= (1 << i);
+        printf("DEBUG ---- trap done\n");
       }
     }
     i++;
   }
   p->handlingSignal = 0;
-  // }
   return;
 }

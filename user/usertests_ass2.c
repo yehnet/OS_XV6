@@ -29,6 +29,12 @@ char buf[BUFSZ];
 
 int wait_sig = 0;
 
+void test_shit()
+{
+
+  printf("shit shit\n");
+}
+
 void test_handler(int signum)
 {
   wait_sig = 1;
@@ -46,6 +52,8 @@ void signal_test(char *s)
   int pid;
   int testsig;
   testsig = 15;
+  test_shit();
+  printf("DEBUG user ----\ntest_shit addr: %p\ntest_handler addr: %p\n", test_shit, test_handler);
   struct sigaction act = {test_handler, (uint)(1 << 29)};
   struct sigaction old;
 
@@ -3293,8 +3301,8 @@ int main(int argc, char *argv[])
     char *s;
   } tests[] = {
       //ASS 2 Compilation tests:
-      // {signal_test, "signal_test"},
-      {thread_test,"thread_test"},
+      {signal_test, "signal_test"},
+      // {thread_test, "thread_test"},
       // {bsem_test,"bsem_test"},
       // {Csem_test,"Csem_test"},
 
@@ -3364,7 +3372,7 @@ int main(int argc, char *argv[])
       // {dirfile, "dirfile"},           // 4 ticks
       //                                 //    {iref, "iref"},// 160 ticks
       // {forktest, "forktest"},         // 14 ticks
-                                      //    {bigdir, "bigdir"}, // slow // 3800 ticks
+      //    {bigdir, "bigdir"}, // slow // 3800 ticks
       {0, 0},
   };
 

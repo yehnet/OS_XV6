@@ -114,16 +114,28 @@ sys_sigprocmask(void)
 uint64
 sys_sigaction(void)
 {
+  // int signum;
+  // const struct sigaction *act = 0;
+  // struct sigaction *oldact = 0;
+  // if (argint(0, &signum) < 0)
+  //   return -1;
+  // if (argaddr(1, (uint64 *)&act) < 0)
+  //   return -1;
+  // if (argaddr(2, (uint64 *)&oldact) < 0)
+  //   return -1;
+  // return sigaction(signum, act, oldact);
   int signum;
-  const struct sigaction *act = 0;
-  struct sigaction *oldact = 0;
+  uint64 newact;
+  uint64 oldact;
+
   if (argint(0, &signum) < 0)
     return -1;
-  if (argaddr(1, (uint64 *)&act) < 0)
+  if (argaddr(1, &newact) < 0)
     return -1;
-  if (argaddr(2, (uint64 *)&oldact) < 0)
+  if (argaddr(2, &oldact) < 0)
     return -1;
-  return sigaction(signum, act, oldact);
+
+  return sigaction(signum, (struct sigaction*)newact, (struct sigaction*)oldact);
 }
 
 //Ass2 - Task2
