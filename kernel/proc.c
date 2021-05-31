@@ -909,7 +909,6 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
     copyin(p->pagetable, (char *)&p->sigHandlers[signum], (uint64)&act->sa_handler, sizeof(act->sa_handler));
     copyin(p->pagetable, (char *)&p->sigHandlersMasks[signum], (uint64)&act->sigmask, sizeof(act->sigmask));
 
-    printf("DEBUG ---- act->sigmask: %p\n", ((p->sigHandlers[signum])));
     release(&p->lock);
   }
   if (oldact != 0)

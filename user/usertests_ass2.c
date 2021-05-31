@@ -53,7 +53,6 @@ void signal_test(char *s)
   int testsig;
   testsig = 15;
   test_shit();
-  printf("DEBUG user ----\ntest_shit addr: %p\ntest_handler addr: %p\n", test_shit, test_handler);
   struct sigaction act = {test_handler, (uint)(1 << 29)};
   struct sigaction old;
 
