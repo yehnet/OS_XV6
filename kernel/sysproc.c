@@ -172,7 +172,7 @@ sys_kthread_join(void)
   int *status = 0;
   if (argint(0, &thread_id) < 0)
     return -1;
-  if (argaddr(1, (uint64 *)status) < 0)
+  if (argaddr(1, (uint64 *)&status) < 0)
     return -1;
   return kthread_join(thread_id, status);
 }

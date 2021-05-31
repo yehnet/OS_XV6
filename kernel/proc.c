@@ -194,10 +194,9 @@ allocThread(struct proc *p)
     else if (t->state == ZOMBIE)
     {
       freeThread(t);
-      release(&t->lock);
-
       i++;
     }
+    release(&t->lock);
     i++;
   }
   return 0;
@@ -300,8 +299,8 @@ freeThread(struct thread *t)
 {
   if (t->state != UNUSED)
     t->parent->tCounter--;
-  if (t->trapframe)
-    kfree((void *)t->trapframe);
+  // if (t->trapframe)
+  //   kfree((void *)t->trapframe);
   if (t->myNum != 0)
     kfree((void *)t->kstack);
   t->kstack = 0;
@@ -311,7 +310,7 @@ freeThread(struct thread *t)
   t->myNum = 0;
   t->killed = 0;
   t->parent = 0;
-  t->xstate = 0;
+  // t->xstate = 0;
   t->bsem_id = 0;
 }
 
@@ -908,7 +907,7 @@ void sigret()
   struct proc *p = myproc();
   struct thread *t = myThread();
 
-  acquire(&t->lock); 
+  acquire(&t->lock);
   *(t->trapframe) = *(t->userTrapBackup);
   p->sigMask = p->sigMaskBackup;
   p->handlingSignal = 0;
@@ -931,7 +930,7 @@ int kthread_create(void (*start_func)(), void *stack)
   newThread->state = RUNNABLE;
   newThread->trapframe->epc = (uint64)start_func;
   //allocate a user stack with size MAX_STACK_SIZE
-  newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE - 16; 
+  newThread->trapframe->sp = (uint64)stack + MAX_STACK_SIZE - 16;
 
   release(&newThread->lock);
   return newThread->tid;
@@ -963,7 +962,7 @@ void kthread_exit(int status)
   acquire(&t->lock);
   t->xstate = status;
   t->state = ZOMBIE;
-  wakeup(p->tparent);
+  wakeup(t);
 
   sched();
   panic("not-last thread exit");
@@ -998,14 +997,15 @@ int kthread_join(int thread_id, int *status)
     if (targett->state == ZOMBIE)
     {
       release(&wait_lock);
-      *status = targett->xstate;
+      copyout(p->pagetable, (uint64)status, (char *)&targett->xstate, sizeof(targett->xstate));
+      // *status = targett->xstate;
       return 0;
     }
     sleep(targett, &wait_lock);
   }
 
   release(&wait_lock);
-  return -1; 
+  return -1;
 }
 //Ass2 - Task4
 int bsem_alloc(void)
@@ -1039,7 +1039,7 @@ found:
   if (bs->state == ALLOC && bs->isLocked == UNLOCKED)
   {
     bs->sid = 0;
-    bs->state = DEALLOC; 
+    bs->state = DEALLOC;
     bs->isLocked = UNLOCKED;
   }
   return;
